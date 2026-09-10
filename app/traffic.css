@@ -13,7 +13,9 @@
 .traffic-task-grid button > span { font-size: 11px; color: var(--text-muted); }
 .traffic-task-grid button > .traffic-task-number { color: var(--accent); font-family: var(--font-mono); }
 .traffic-navigation button { flex: none !important; justify-content: flex-start !important; padding-left: 12px !important; }
-.traffic-simulation-layout > .traffic-chat-column { flex: 0 0 clamp(360px, 32vw, 480px) !important; border-right: 1px solid var(--border); }
+.traffic-chat-column { transition: flex-grow 220ms ease, flex-basis 220ms ease; }
+.traffic-simulation-layout > .traffic-chat-column { flex: 0 1 clamp(360px, 32vw, 480px) !important; border-right: 1px solid var(--border); }
+@media (prefers-reduced-motion: reduce) { .traffic-chat-column { transition: none; } }
 .traffic-chat-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 16px; border-bottom: 1px solid var(--border); }
 .traffic-chat-heading strong { color: var(--accent); font-size: 15px; }
 .traffic-chat-heading span { color: var(--text-muted); font-size: 11px; }

@@ -11,21 +11,24 @@ export function AbstreetPanel({ open, onClose }: { open: boolean; onClose: () =>
   useEffect(() => {
     const element = viewport.current;
     if (!element) return;
+    let resizeTimer: ReturnType<typeof setTimeout>;
     const observer = new ResizeObserver(([entry]) => {
+      clearTimeout(resizeTimer);
       if (entry.contentRect.width && entry.contentRect.height) {
-        setSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+        const { width, height } = entry.contentRect;
+        resizeTimer = setTimeout(() => setSize({ width, height }), 100);
       }
     });
     observer.observe(element);
-    return () => observer.disconnect();
+    return () => { clearTimeout(resizeTimer); observer.disconnect(); };
   }, []);
   const scale = Math.min(1, size.width / 1500);
   if (open && !started) setStarted(true);
 
   return <>
-    <section hidden={!open} className={styles.workspace} aria-label="A/B Street 仿真工作台">
+    <section data-open={open} inert={!open} aria-hidden={!open} className={styles.workspace} aria-label="交通仿真工作台">
       <header className={styles.toolbar}>
-        <div><small>TRAFFIC PI / SIMULATION</small><strong>交通仿真工作台 <span> · A/B Street</span></strong></div>
+        <div><small>TRAFFIC PI / SIMULATION</small><strong>交通仿真工作台</strong></div>
         <nav aria-label="仿真视图" className={styles.actions}>
         <a href="/abstreet/abstreet.html" target="_blank" rel="noopener noreferrer">独立打开</a>
         <button type="button" onClick={async () => {
@@ -40,7 +43,7 @@ export function AbstreetPanel({ open, onClose }: { open: boolean; onClose: () =>
       </header>
       {error && <p role="status">{error}</p>}
       <div ref={viewport} className={styles.viewport}>
-        {started && <iframe title="A/B Street 本地仿真" src="/abstreet/abstreet.html" allow="fullscreen" style={{ width: size.width / scale, height: size.height / scale, transform: `scale(${scale})`, transformOrigin: "top left" }} />}
+        {started && <iframe title="本地交通仿真" src="/abstreet/abstreet.html" allow="fullscreen" style={{ width: size.width / scale, height: size.height / scale, transform: `scale(${scale})`, transformOrigin: "top left" }} />}
       </div>
       <footer className={styles.footer}><span>本地仿真 · 手动操作</span><span>左侧对话 · 右侧场景</span></footer>
     </section>

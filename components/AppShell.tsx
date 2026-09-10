@@ -1151,7 +1151,7 @@ export function AppShell() {
         onSessionsChange={handleSessionsChange}
       />
       <div className="traffic-navigation" style={{ padding: "8px", flexShrink: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-        <button type="button" onClick={() => { setSimulationOpen(true); setSidebarOpen(false); setRightPanelOpen(false); }} aria-expanded={simulationOpen} style={{ height: 32, color: "var(--accent)", textAlign: "left" }}>▧ 仿真工作台 · A/B Street</button>
+        <button type="button" onClick={() => { setSimulationOpen(true); setSidebarOpen(false); setRightPanelOpen(false); }} aria-expanded={simulationOpen} style={{ height: 32, color: "var(--accent)", textAlign: "left" }}>▧ 仿真工作台</button>
         {([
           ["models", translate("common.models")],
           ["mcp", "MCP 工具"],

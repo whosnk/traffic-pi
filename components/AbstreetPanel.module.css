@@ -1,17 +1,22 @@
 .workspace {
-  flex: 2;
+  flex: 0 1 0%;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  margin: 10px;
+  margin: 10px 0;
   padding: 0;
-  border: 1px solid var(--border);
+  border: 0 solid var(--border);
   border-radius: 12px;
   background: var(--bg-panel);
   color: var(--text);
   overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(12px);
+  transition: flex-grow 220ms ease, margin 220ms ease, opacity 180ms ease, transform 220ms ease, visibility 0s 220ms;
 }
-.workspace[hidden] { display: none; }
+.workspace[data-open="true"] { flex-grow: 2; margin: 10px; border-width: 1px; opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+@media (prefers-reduced-motion: reduce) { .workspace { transition: none; } }
 .toolbar small { display: block; color: var(--accent); font-size: 10px; letter-spacing: .12em; margin-bottom: 4px; }
 .footer { display: flex; justify-content: space-between; gap: 8px; padding: 8px 14px; font-size: 11px; color: var(--text-muted); border-top: 1px solid var(--border); }
 .toolbar { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 8px 16px; border-bottom: 1px solid var(--border); }

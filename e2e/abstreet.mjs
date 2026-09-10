@@ -5,10 +5,12 @@ const browser = await chromium.launch({ channel: "msedge" });
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await page.goto("http://127.0.0.1:30141/?cwd=" + encodeURIComponent(process.cwd()));
-  const entry = page.getByRole("button", { name: "▧ 仿真工作台 · A/B Street", exact: true });
+  const entry = page.getByRole("button", { name: "▧ 仿真工作台", exact: true });
+  let simulationLoads = 0;
+  page.on("request", (request) => { if (request.url().endsWith("/abstreet/abstreet.html")) simulationLoads++; });
   await entry.click();
-  const dialog = page.getByRole("region", { name: "A/B Street 仿真工作台" });
-  const frame = page.frameLocator('iframe[title="A/B Street 本地仿真"]');
+  const dialog = page.getByRole("region", { name: "交通仿真工作台" });
+  const frame = page.frameLocator('iframe[title="本地交通仿真"]');
   await frame.locator("canvas").waitFor({ timeout: 60000 });
   await page.locator(".chat-input-textarea").fill("比较当前场景的交通方案");
   assert.equal(await page.locator(".chat-input-textarea").inputValue(), "比较当前场景的交通方案");
@@ -27,13 +29,22 @@ try {
   await page.getByRole("button", { name: /Show sidebar|显示侧边栏/ }).click();
   await entry.click();
   assert.equal(page.frames().find((item) => item.url().includes("abstreet.html")), originalFrame);
+  const panel = page.locator('section[aria-label="交通仿真工作台"]');
+  assert.ok(await panel.evaluate((element) => getComputedStyle(element).transitionDuration.includes("0.22s")));
+  await page.getByRole("button", { name: "收起仿真" }).click();
+  assert.equal(await panel.getAttribute("inert"), "");
+  await entry.evaluate((element) => element.click());
+  await panel.waitFor({ state: "visible" });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  assert.equal(await panel.evaluate((element) => getComputedStyle(element).transitionDuration), "0s");
+  assert.equal(simulationLoads, 1, "Toggling must not reload the simulation");
   await page.screenshot({ path: "abstreet-workspace.png" });
   await page.setViewportSize({ width: 760, height: 900 });
   const smallChat = await page.locator(".traffic-chat-column").boundingBox();
   assert.ok((await dialog.boundingBox()).y >= smallChat.y + smallChat.height);
   await page.getByRole("button", { name: "收起仿真" }).click();
   await dialog.waitFor({ state: "hidden" });
-  console.log("PASS: chat and simulation side by side, fullscreen, instance preservation, stacked narrow layout");
+  console.log("PASS: split layout, fullscreen, rapid toggle without reload, inert closed panel, reduced motion, narrow layout");
 } finally {
   await browser.close();
 }
