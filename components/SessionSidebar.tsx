@@ -331,7 +331,7 @@ function PiWebTitle() {
   const [scrambling, setScrambling] = useState(false);
   const revertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const target = showVersion ? `${process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0"}p${process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0"}` : "Pi Web";
+  const target = showVersion ? `${process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0"}p${process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0"}` : "Traffic Pi";
   const display = useScramble(target, scrambling);
 
   const triggerScramble = useCallback((toVersion: boolean) => {
@@ -361,7 +361,7 @@ function PiWebTitle() {
         fontWeight: 700, fontSize: 15, letterSpacing: "-0.01em",
         color: showVersion ? "var(--accent)" : "var(--text)",
         fontFamily: "var(--font-mono)",
-        minWidth: "6ch",
+        minWidth: "9ch",
       }}
     >
       {display}
@@ -399,7 +399,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   const [worktreeLoadingCwd, setWorktreeLoadingCwd] = useState<string | null>(null);
   const wtDropdownRef = useRef<HTMLDivElement>(null);
   const wtNewInputRef = useRef<HTMLInputElement>(null);
-  const [explorerOpen, setExplorerOpen] = useState(true);
+  const [explorerOpen, setExplorerOpen] = useState(false);
   const [explorerKey, setExplorerKey] = useState(0);
   const [explorerUploadBusy, setExplorerUploadBusy] = useState(false);
   const [fileSearchOpen, setFileSearchOpen] = useState(false);
@@ -1326,7 +1326,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
             switching between worktrees of one project keeps the row mounted
             instead of flickering while data refetches: all worktrees of a
             project share the same list anyway. */}
-        {!sessionSearchOpen && showWorktreeSwitcher && (() => {
+        {explorerOpen && !sessionSearchOpen && showWorktreeSwitcher && (() => {
           if (!worktreeState) return null;
           const showWtFilter = worktreeState.worktrees.length >= 8;
           const visibleWorktrees = showWtFilter && wtFilter.trim()
@@ -1778,9 +1778,9 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
               >
                 <polyline points="3 2 7 5 3 8" />
               </svg>
-              {t("files.explorer")}
+              开发工具
             </button>
-            {onOpenTerminal && (
+            {explorerOpen && onOpenTerminal && (
               <ToolbarIconButton
                 onClick={() => onOpenTerminal(selectedCwd ?? selectedCwdProp!)}
                 title={t("terminal.open")}

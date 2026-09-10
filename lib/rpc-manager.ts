@@ -42,6 +42,7 @@ import { createSubagentController } from "./subagent-runtime";
 import { isBuiltInSubagentsEnabled } from "./subagent-settings";
 import { resolveShellTools } from "./powershell-settings";
 import { CHAT_ONLY_RESOURCE_LOADER_OPTIONS, contextFilesSystemPrompt } from "./chat-only";
+import { createTrafficMcpExtension } from "./traffic-mcp";
 import {
   appendSessionToolSelection,
   readSessionToolSelection,
@@ -2020,6 +2021,7 @@ export async function startRpcSession(
           ? CHAT_ONLY_RESOURCE_LOADER_OPTIONS
         : {
             extensionFactories: [
+              createTrafficMcpExtension(sessionCwd),
               createProjectCommandBashExtension({
                 cwd: sessionCwd,
                 settings: settingsManager,

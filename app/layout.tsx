@@ -4,6 +4,7 @@ import { PwaRegistration } from "@/components/PwaRegistration";
 import "katex/dist/katex.min.css";
 import "./globals.css";
 import "./settings.css";
+import "./traffic.css";
 
 const notoSansMono = Noto_Sans_Mono({
   subsets: ["latin", "cyrillic"],
@@ -12,9 +13,9 @@ const notoSansMono = Noto_Sans_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pi Web",
-  description: "Pi Web interface for the pi coding agent",
-  applicationName: "Pi Web",
+  title: "Traffic Pi",
+  description: "MCP-powered traffic simulation agent",
+  applicationName: "Traffic Pi",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
@@ -35,7 +36,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Pi Web",
+    title: "Traffic Pi",
   },
   formatDetection: {
     telephone: false,

@@ -28,8 +28,8 @@
   --text: #1a1a1a;
   --text-muted: #6b7280;
   --text-dim: #9ca3af;
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
+  --accent: #087f83;
+  --accent-hover: #08666a;
   --user-bg: #eff6ff;
   --assistant-bg: #ffffff;
   --tool-bg: #f9fafb;
@@ -47,12 +47,94 @@ html.dark {
   --text: #e8e8e8;
   --text-muted: #9ca3af;
   --text-dim: #6b7280;
-  --accent: #60a5fa;
-  --accent-hover: #93c5fd;
+  --accent: #4dd9c0;
+  --accent-hover: #88ead9;
   --user-bg: #1e293b;
   --assistant-bg: #1a1a1a;
   --tool-bg: #1f2937;
   --bg-subtle: rgba(255,255,255,0.04);
+}
+
+.traffic-welcome {
+  padding-top: 12px;
+}
+
+.traffic-signal-mark {
+  display: inline-flex;
+  gap: 3px;
+  padding: 4px 6px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg));
+}
+
+.traffic-signal-mark i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+
+.traffic-signal-mark i:first-child { background: #ef4444; }
+.traffic-signal-mark i:nth-child(2) { background: #f59e0b; }
+.traffic-signal-mark i:last-child { background: #22c55e; }
+
+.traffic-welcome-copy {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 9%, var(--bg)), var(--bg));
+}
+
+.traffic-kicker {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.traffic-welcome-copy p {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.traffic-capabilities {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.traffic-capabilities > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+}
+
+.traffic-capabilities strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.traffic-capabilities span {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .traffic-capabilities { grid-template-columns: 1fr; }
 }
 
 /* WebKit reports dvh/innerHeight without the status-bar strip for installed

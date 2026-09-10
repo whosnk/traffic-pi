@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useGlobalKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { SessionSidebar } from "./SessionSidebar";
 import { ChatWindow } from "./ChatWindow";
+import { AbstreetPanel } from "./AbstreetPanel";
 import type { ChatScrollPosition } from "@/lib/chat-scroll-position";
 import { FileViewer } from "./FileViewer";
 import { TabBar, type Tab } from "./TabBar";
@@ -170,6 +171,7 @@ export function AppShell() {
   const [projectTrustBusy, setProjectTrustBusy] = useState(false);
   const [projectTrustError, setProjectTrustError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [simulationOpen, setSimulationOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [mobileToolbarMoreOpen, setMobileToolbarMoreOpen] = useState(false);
   const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
@@ -1112,7 +1114,7 @@ export function AppShell() {
 
   const activeFileTab = fileTabs.find((tab) => tab.id === activeFileTabId) ?? null;
   const activeCwdName = activeCwd ? getFileName(activeCwd) || activeCwd : null;
-  const windowTitle = activeCwdName ? `${activeCwdName} - Pi Web` : "Pi Web";
+  const windowTitle = activeCwdName ? `${activeCwdName} - Traffic Pi` : "Traffic Pi";
 
   useEffect(() => {
     const syncWindowTitle = () => {
@@ -1148,10 +1150,12 @@ export function AppShell() {
         onRunningSessionIdsChange={handleRunningSessionIdsChange}
         onSessionsChange={handleSessionsChange}
       />
-      <div style={{ padding: "8px", flexShrink: 0, display: "flex", justifyContent: "space-between", gap: 4 }}>
+      <div className="traffic-navigation" style={{ padding: "8px", flexShrink: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+        <button type="button" onClick={() => { setSimulationOpen(true); setSidebarOpen(false); setRightPanelOpen(false); }} aria-expanded={simulationOpen} style={{ height: 32, color: "var(--accent)", textAlign: "left" }}>▧ 仿真工作台 · A/B Street</button>
         {([
           ["models", translate("common.models")],
-          ["skills", translate("common.skills")],
+          ["mcp", "MCP 工具"],
+          ["skills", "专属技能"],
         ] as const).map(([section, label]) => {
           const disabled = section !== "models" && !projectTrustCwd;
           return (
@@ -1921,7 +1925,7 @@ export function AppShell() {
         }
       }
     `}</style>
-    <div style={{
+    <div className={simulationOpen ? "traffic-simulation-layout" : undefined} style={{
       display: "flex",
       width: "100%",
       height: "var(--app-viewport-height, 100dvh)",
@@ -1975,7 +1979,8 @@ export function AppShell() {
       )}
 
       {/* Center: chat */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+      <div className="traffic-chat-column" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+        {simulationOpen && <div className="traffic-chat-heading"><strong>交通智能体</strong><span>场景分析与方案讨论</span></div>}
         {/* Top bar with sidebar toggle */}
         <div ref={topBarRef} style={{ flexShrink: 0, background: "var(--bg-panel)" }}>
         <div style={{ display: "flex", alignItems: "center", position: "relative", borderBottom: "1px solid var(--border)", height: "calc(36px + env(safe-area-inset-top))", paddingTop: "env(safe-area-inset-top)" }}>
@@ -2452,15 +2457,21 @@ export function AppShell() {
                  {translate("workspace.selectSession")}
               </div>
             ) : (
-              <div style={{ position: "absolute", top: 12, left: 12, display: "flex", alignItems: "flex-start", gap: 8, userSelect: "none", pointerEvents: "none" }}>
-                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7, flexShrink: 0 }}>
-                  <line x1="20" y1="12" x2="4" y2="12" /><polyline points="10 6 4 12 10 18" />
+              <div className="traffic-onboarding">
+                <span className="traffic-kicker">TRAFFIC INTELLIGENCE WORKSPACE</span>
+                <h1>Traffic Pi <span>交通智能体</span></h1>
+                <p>连接仿真软件，让交通问题从分析走向验证。</p>
+                <svg className="traffic-network" viewBox="0 0 500 80" fill="none" role="img" aria-label="交通路网示意，非实时数据">
+                  <path d="M0 20H500M0 60H500M90 0V80M250 0V80M410 0V80" stroke="currentColor" strokeWidth="10" opacity=".12" />
+                  <path d="M0 20H250V60H500M90 0V80M410 0V80" stroke="currentColor" strokeWidth="2" strokeDasharray="5 6" />
+                  <circle cx="90" cy="20" r="5" fill="currentColor" /><circle cx="250" cy="60" r="5" fill="currentColor" /><circle cx="410" cy="60" r="5" fill="currentColor" />
                 </svg>
                 <div>
                    <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text)", marginBottom: 8 }}>{translate("workspace.getStarted")}</div>
                   <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.8 }}>
                      <span style={{ color: "var(--text-dim)", marginRight: 6 }}>1.</span>{translate("workspace.selectProject")}<br />
                      <span style={{ color: "var(--text-dim)", marginRight: 6 }}>2.</span>{translate("workspace.addModels")}
+                     <br /><span style={{ color: "var(--text-dim)", marginRight: 6 }}>3.</span>在 MCP 工具中连接仿真服务，通过专属技能开展交通分析
                   </div>
                 </div>
               </div>
@@ -2469,6 +2480,7 @@ export function AppShell() {
         </div>
       </div>
 
+      <AbstreetPanel open={simulationOpen} onClose={() => setSimulationOpen(false)} />
       <div
         aria-hidden="true"
         className={`right-panel-overlay-backdrop${rightPanelOpen ? " is-open" : ""}`}

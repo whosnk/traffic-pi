@@ -1,8 +1,10 @@
 import { hasTrustRequiringProjectResources, ProjectTrustStore } from "@earendil-works/pi-coding-agent";
 import type { ProjectTrustStatus } from "./api-types";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 export function getProjectTrustStatus(cwd: string, agentDir: string): ProjectTrustStatus {
-  const requiresTrust = Boolean(cwd) && hasTrustRequiringProjectResources(cwd);
+  const requiresTrust = Boolean(cwd) && (existsSync(join(cwd, ".pi", "mcp.json")) || hasTrustRequiringProjectResources(cwd));
   if (!requiresTrust) return { requiresTrust: false, trusted: true };
 
   const trustStore = new ProjectTrustStore(agentDir);

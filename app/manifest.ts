@@ -3,15 +3,15 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "Pi Web",
-    short_name: "Pi Web",
-    description: "Local web interface for the pi coding agent",
+    name: "Traffic Pi",
+    short_name: "Traffic Pi",
+    description: "MCP-powered traffic simulation agent",
     start_url: "/",
     scope: "/",
     display: "standalone",
     background_color: "#ffffff",
     theme_color: "#1a1a1a",
-    categories: ["developer", "productivity"],
+    categories: ["developer", "productivity", "utilities"],
     lang: "en",
     icons: [
       {

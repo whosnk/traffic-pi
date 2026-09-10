@@ -1318,14 +1318,14 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
 
       <div className="relative shrink-0">
         {isEmptyNew && (
-          <div className="mx-auto mb-3 w-full" style={{ maxWidth: "var(--chat-content-max-width, 820px)", paddingLeft: 32, paddingRight: isMobile ? 32 : 68 }}>
+          <div className="traffic-welcome mx-auto mb-3 w-full" style={{ maxWidth: "var(--chat-content-max-width, 820px)", paddingLeft: 32, paddingRight: isMobile ? 32 : 68 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, fontFamily: "var(--font-mono)" }}>
               <div style={{ display: "flex", alignItems: "baseline", gap: isMobile ? 7 : 10, minWidth: 0, flex: 1, lineHeight: 1.4, overflow: "hidden" }}>
-                <span style={{ fontSize: 28, fontWeight: 700, color: "var(--text)", flexShrink: 0, whiteSpace: "nowrap" }}>π</span>
-                <span style={{ fontSize: 22, color: "var(--text)", fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap" }}>Pi Web</span>
+                <span className="traffic-signal-mark" aria-hidden="true"><i /><i /><i /></span>
+                <span style={{ fontSize: isMobile ? 16 : 22, color: "var(--text)", fontWeight: 700 }}>Traffic Pi · 交通智能体</span>
                 <NewSessionUpdateLink label={(version) => t("appUpdate.releaseNotes", { version })} />
               </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, flexShrink: 0 }}>
+              <div style={{ display: isMobile ? "none" : "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, flexShrink: 0 }}>
                 <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
                   web <span style={{ color: "var(--text)" }}>v{process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0"}</span>
                 </span>
@@ -1333,6 +1333,26 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                   pi <span style={{ color: "var(--text)" }}>v{process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0"}</span>
                 </span>
               </div>
+            </div>
+            <div className="traffic-welcome-copy">
+              <span className="traffic-kicker">从交通问题，到仿真决策</span>
+              <h1>今天，想改善哪一段交通？</h1>
+              <p>描述你的场景与目标，由交通智能体协助运行仿真、识别拥堵与评估方案。</p>
+              <svg className="traffic-network" viewBox="0 0 500 80" fill="none" aria-label="交通路网示意图，非实时仿真">
+                <path d="M0 20H500M0 60H500M90 0V80M250 0V80M410 0V80" stroke="currentColor" strokeWidth="9" opacity=".12" />
+                <path d="M0 20H250V60H500M90 0V80M410 0V80" stroke="currentColor" strokeWidth="2" strokeDasharray="5 6" />
+                {[90, 250, 410].map((x) => <g key={x}><circle cx={x} cy="20" r="5" fill="currentColor" /><circle cx={x} cy="60" r="5" fill="currentColor" /></g>)}
+              </svg>
+            </div>
+            <div className="traffic-task-grid" aria-label="交通任务快捷入口">
+              {[
+                ["运行仿真", "场景加载与运行控制", "请先检查可用的交通 MCP 工具和当前场景，确认路网、需求与运行时长后协助我运行仿真。"],
+                ["分析拥堵", "定位瓶颈与排队路段", "请使用已连接的交通工具分析当前场景的拥堵瓶颈，列出排队长度和平均延误，并注明数据来源。"],
+                ["评估信号配时", "路口效率与相位分析", "请读取当前路口信号方案和运行指标，分析配时问题并提出建议；执行修改前先向我确认。"],
+                ["对比方案", "延误、速度与通行效率", "请协助对比两组交通仿真方案。先确认场景、需求和随机种子等可比条件，再用真实结果分析差异。"],
+              ].map(([title, subtitle, prompt], index) => <button key={title} type="button" onClick={() => chatInputRef?.current?.insertIfEmpty(prompt)}>
+                <span className="traffic-task-number">0{index + 1}</span><strong>{title}</strong><span>{subtitle}</span>
+              </button>)}
             </div>
           </div>
         )}

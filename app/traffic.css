@@ -1,0 +1,37 @@
+.traffic-welcome-copy { position: relative; overflow: hidden; padding: 22px; }
+.traffic-onboarding { width: min(640px, 100%); margin: auto; padding: clamp(24px, 5vw, 56px); }
+.traffic-onboarding h1 { font-size: clamp(26px, 4vw, 40px); font-weight: 700; letter-spacing: -.04em; margin: 16px 0; }
+.traffic-onboarding h1 span { display: block; color: var(--accent); }
+.traffic-onboarding > p { color: var(--text-muted); line-height: 1.8; }
+.traffic-onboarding > div { padding-top: 24px; margin-top: 24px; border-top: 1px solid var(--border); }
+.traffic-welcome-copy h1 { margin: 12px 0; font-size: clamp(20px, 3vw, 30px); letter-spacing: -.04em; line-height: 1.3; }
+.traffic-network { display: block; width: 100%; height: 64px; color: var(--accent); margin-top: 16px; }
+.traffic-task-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.traffic-task-grid button { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; text-align: left; padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); cursor: pointer; }
+.traffic-task-grid button:hover { border-color: var(--accent); background: var(--bg-panel); }
+.traffic-task-grid button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.traffic-task-grid button > span { font-size: 11px; color: var(--text-muted); }
+.traffic-task-grid button > .traffic-task-number { color: var(--accent); font-family: var(--font-mono); }
+.traffic-navigation button { flex: none !important; justify-content: flex-start !important; padding-left: 12px !important; }
+.traffic-simulation-layout > .traffic-chat-column { flex: 0 0 clamp(360px, 32vw, 480px) !important; border-right: 1px solid var(--border); }
+.traffic-chat-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 16px; border-bottom: 1px solid var(--border); }
+.traffic-chat-heading strong { color: var(--accent); font-size: 15px; }
+.traffic-chat-heading span { color: var(--text-muted); font-size: 11px; }
+.traffic-simulation-layout .traffic-task-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.traffic-simulation-layout .traffic-welcome-copy { padding: 16px; }
+.traffic-simulation-layout .traffic-welcome-copy h1 { font-size: 22px; }
+.traffic-simulation-layout .traffic-network { display: none; }
+.traffic-simulation-layout > #file-panel, .traffic-simulation-layout > .right-panel-resize-handle { display: none !important; }
+@media (max-width: 800px) { .traffic-simulation-layout { flex-direction: column; } .traffic-simulation-layout > .traffic-chat-column { flex: 0 0 45% !important; width: 100%; } }
+.traffic-mcp-panel { padding: 24px; overflow: auto; width: 100%; height: 100%; color: var(--text); }
+.traffic-mcp-panel h2 { font-size: 24px; margin: 8px 0; }
+.traffic-mcp-panel p { color: var(--text-muted); margin: 12px 0; overflow-wrap: anywhere; }
+.traffic-mcp-panel form { display: grid; gap: 12px; max-width: 680px; }
+.traffic-mcp-panel label { display: grid; gap: 6px; }
+.traffic-mcp-panel input, .traffic-mcp-panel select, .traffic-mcp-panel button { border: 1px solid var(--border); background: var(--bg-panel); color: var(--text); padding: 10px; border-radius: 6px; }
+.traffic-mcp-panel button { cursor: pointer; }
+.traffic-mcp-panel button:disabled { opacity: .5; cursor: default; }
+.traffic-mcp-panel article { border-top: 1px solid var(--border); padding: 14px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.traffic-mcp-panel article span { font-size: 12px; color: var(--text-muted); }
+@media (max-width: 800px) { .traffic-task-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-height: 720px) { .traffic-network { display: none; } .traffic-welcome-copy { padding: 12px; } }
