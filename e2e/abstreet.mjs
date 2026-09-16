@@ -7,7 +7,7 @@ try {
   await page.goto("http://127.0.0.1:30141/?cwd=" + encodeURIComponent(process.cwd()));
   const entry = page.getByRole("button", { name: "▧ 仿真工作台", exact: true });
   let simulationLoads = 0;
-  page.on("request", (request) => { if (request.url().endsWith("/abstreet/abstreet.html")) simulationLoads++; });
+  page.on("request", (request) => { if (new URL(request.url()).pathname === "/abstreet/abstreet.html") simulationLoads++; });
   await entry.click();
   const dialog = page.getByRole("region", { name: "交通仿真工作台" });
   const frame = page.frameLocator('iframe[title="本地交通仿真"]');
