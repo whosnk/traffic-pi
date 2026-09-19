@@ -4,7 +4,7 @@
 
 - downloads/：官方 Windows 发布 ZIP 原件，未运行其中的 exe。
 - web/0.3.49/：来自 https://play.abstreet.org/0.3.49/ 的 JS、WASM、CSS；data/ 从同版本官方 ZIP 提取。HTML 为 Traffic Pi 本地启动页。
-- 这些大文件仅保留本地，已从 Git 排除，不混入应用源码。
+- web/ 跟随应用提交，用于部署；downloads/ 仅保留本地。
 
 启动 Traffic Pi 后，选择侧边栏“仿真工作台”，或访问 http://127.0.0.1:30141/abstreet/abstreet.html 。不要双击 HTML，WASM 需要 HTTP 服务。
 

@@ -1,0 +1,4 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>A/B Street · Traffic Pi</title><link rel="stylesheet" href="./abstreet.css"><style>html,body{height:100%;margin:0;overflow:hidden}.widgetry-app .preloading{color:#333}</style></head>
+<body><div class="widgetry-app full-screen-widgetry-app" id="app"><div class="preloading"><h1>A/B Street</h1><p>Loading local simulation…</p></div></div>
+<script type="module">import { ABStreet } from "./abstreet/abstreet.bundle.js";const app=new ABStreet("app");app.setAssetsBaseURL("./data");app.setAssetsAreGzipped(false);app.loadAndStart();</script></body></html>

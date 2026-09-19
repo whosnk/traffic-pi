@@ -17,7 +17,6 @@
 # next.js
 /.next/
 /third-party/abstreet/downloads/
-/third-party/abstreet/web/
 /out/
 
 # production
