@@ -3,9 +3,13 @@
 版本：v0.3.49。来源：https://github.com/a-b-street/abstreet/releases/tag/v0.3.49
 
 - downloads/：官方 Windows 发布 ZIP 原件，未运行其中的 exe。
-- web/0.3.49/：来自 https://play.abstreet.org/0.3.49/ 的 JS、WASM、CSS；data/ 从同版本官方 ZIP 提取。HTML 为 Traffic Pi 本地启动页。
+- web/0.3.49/：基于 A/B Street v0.3.49 构建的中文 JS、WASM、CSS 和离线数据。HTML 为 Traffic Pi 本地启动页。
+- customization/：中文文案映射和可重放的源码补丁。
+- chongqing/yuzhong_core.geojson：重庆渝中半岛核心区导入边界（106.514–106.591°E，29.535–29.579°N）。
 - web/ 跟随应用提交，用于部署；downloads/ 仅保留本地。
 
 启动 Traffic Pi 后，选择侧边栏“仿真工作台”，或访问 http://127.0.0.1:30141/abstreet/abstreet.html 。不要双击 HTML，WASM 需要 HTTP 服务。
 
-第一阶段仅提供手动仿真画面，不提供 MCP 控制。工作台左侧保留交通任务对话，右侧显示仿真，小屏幕上下排列；可切换全屏。“收起”后再次打开会保留同一个仿真实例（隐藏不代表暂停，刷新页面会重置）。仅包含发布包随附地图，其他城市不保证离线可用。
+默认加载重庆渝中半岛工作日场景，从 08:00 开始。地图基于 2026-09-20 通过 Overpass Kumi 镜像获取的 OpenStreetMap 数据，© OpenStreetMap contributors，按 ODbL 提供；出行需求由 A/B Street `random-scenario` 使用固定随机种子 42 合成，不代表真实交通需求。
+
+中文包复现：检出 A/B Street `v0.3.49`，执行 `git apply --unidiff-zero customization/v0.3.49-zh-cn.patch`，将 `customization/zh_cn.rs` 复制到 `widgetry/src/zh_cn.rs`，然后在 `web/` 执行 `WASM_PACK_FLAGS=--release make abstreet`。生成的 `game.js` 与 `game_bg.wasm` 必须成对替换。

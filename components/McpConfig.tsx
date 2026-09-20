@@ -36,12 +36,12 @@ export function McpConfig({ cwd }: { cwd: string }) {
     return { name, transport, enabled: true, ...(transport === "http" ? { url: endpoint } : { command: endpoint, args: JSON.parse(args) }) };
   }
   return <section className="traffic-mcp-panel">
-    <span className="traffic-kicker">SIMULATION CONNECTIONS</span><h2>MCP 工具</h2>
+    <span className="traffic-kicker">仿真连接</span><h2>MCP 工具</h2>
     <p>连接当前项目的仿真软件。启用后，交通智能体可在对话中调用服务器工具。</p>
     <form onSubmit={(e) => { e.preventDefault(); try { void submit("save", [...servers.filter((s) => s.name !== name), draft()]); } catch { setMessage("参数必须是 JSON 字符串数组。"); } }}>
       <label>服务器名称<input required value={name} onChange={(e) => setName(e.target.value)} pattern="[a-zA-Z0-9_-]{1,40}" /></label>
-      <label>连接方式<select value={transport} onChange={(e) => { setTransport(e.target.value as "stdio" | "http"); setEndpoint(""); }}><option value="http">服务器 URL · Streamable HTTP</option><option value="stdio">本地命令 · stdio</option></select></label>
-      <label>{transport === "http" ? "MCP URL" : "可执行命令"}<input required value={endpoint} placeholder={transport === "http" ? "http://127.0.0.1:8000/mcp" : "python"} onChange={(e) => setEndpoint(e.target.value)} /></label>
+      <label>连接方式<select value={transport} onChange={(e) => { setTransport(e.target.value as "stdio" | "http"); setEndpoint(""); }}><option value="http">服务器地址 · 流式 HTTP</option><option value="stdio">本地命令 · stdio</option></select></label>
+      <label>{transport === "http" ? "MCP 服务地址" : "可执行命令"}<input required value={endpoint} placeholder={transport === "http" ? "http://127.0.0.1:8000/mcp" : "python"} onChange={(e) => setEndpoint(e.target.value)} /></label>
       {transport === "stdio" && <label>参数（JSON 数组）<input value={args} onChange={(e) => setArgs(e.target.value)} placeholder={'["server.py"]'} /></label>}
       <button disabled={busy || !loaded}>保存并启用</button>
     </form>

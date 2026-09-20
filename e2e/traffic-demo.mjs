@@ -25,8 +25,8 @@ try {
   assert.equal(JSON.parse(result.content[0].text).status, "loading");
   await page.frameLocator('iframe[title="本地交通仿真"]').locator("canvas").waitFor({ timeout: 60000 });
   await page.waitForTimeout(15000);
-  const frame = page.frames().find(item => item.url().includes("--time=08:00:00"));
-  assert.ok(frame, "MCP must start the rush-hour scene in the embedded frame");
+  const frame = page.frames().find(item => item.url().includes("cn/chongqing/scenarios/yuzhong_core/weekday.bin") && item.url().includes("--time=08:00:00"));
+  assert.ok(frame, "MCP must start the Chongqing rush-hour scene in the embedded frame");
   const canvas = frame.locator("canvas");
   const first = await canvas.screenshot({ path: ".next/traffic-demo-before.png" });
   await page.waitForTimeout(3000);

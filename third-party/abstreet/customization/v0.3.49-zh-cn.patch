@@ -1,0 +1,73 @@
+diff --git a/abstio/src/io_web.rs b/abstio/src/io_web.rs
+index 3cc7fa1..f7f9c42 100644
+--- a/abstio/src/io_web.rs
++++ b/abstio/src/io_web.rs
+@@ -22,0 +23 @@ static SYSTEM_DATA: include_dir::Dir = include_dir::include_dir!(
++    "assets\\",
+@@ -23,0 +25 @@ static SYSTEM_DATA: include_dir::Dir = include_dir::include_dir!(
++    "-assets\\music\\",
+@@ -24,0 +27 @@ static SYSTEM_DATA: include_dir::Dir = include_dir::include_dir!(
++    "ltn_proposals\\",
+@@ -26 +29,3 @@ static SYSTEM_DATA: include_dir::Dir = include_dir::include_dir!(
+-    "study_areas/"
++    "proposals\\",
++    "study_areas/",
++    "study_areas\\"
+@@ -28,0 +34,14 @@ static SYSTEM_DATA: include_dir::Dir = include_dir::include_dir!(
++fn system_file(path: &str) -> Option<include_dir::File<'static>> {
++    let path = path.trim_start_matches("../data/system/");
++    SYSTEM_DATA
++        .get_file(path)
++        .or_else(|| SYSTEM_DATA.get_file(path.replace('/', "\\")))
++}
++
++fn system_dir(path: &str) -> Option<include_dir::Dir<'static>> {
++    let path = path.trim_start_matches("../data/system/");
++    SYSTEM_DATA
++        .get_dir(path)
++        .or_else(|| SYSTEM_DATA.get_dir(path.replace('/', "\\")))
++}
++
+@@ -41,3 +60 @@ pub fn file_exists<I: AsRef<str>>(path: I) -> bool {
+-    SYSTEM_DATA
+-        .get_file(path.trim_start_matches("../data/system/"))
+-        .is_some()
++    system_file(path).is_some()
+@@ -55 +72 @@ pub fn list_dir(dir: String) -> Vec<String> {
+-    } else if let Some(dir) = SYSTEM_DATA.get_dir(dir.trim_start_matches("../data/system/")) {
++    } else if let Some(dir) = system_dir(&dir) {
+@@ -87 +104 @@ pub fn slurp_file<I: AsRef<str>>(path: I) -> Result<Vec<u8>> {
+-    if let Some(raw) = SYSTEM_DATA.get_file(path.trim_start_matches("../data/system/")) {
++    if let Some(raw) = system_file(path) {
+@@ -106 +123 @@ pub fn maybe_read_binary<T: DeserializeOwned>(path: String, _: &mut Timer) -> Re
+-    if let Some(raw) = SYSTEM_DATA.get_file(path.trim_start_matches("../data/system/")) {
++    if let Some(raw) = system_file(&path) {
+diff --git a/importer/src/lib.rs b/importer/src/lib.rs
+index db07fc6..b69d2c5 100644
+--- a/importer/src/lib.rs
++++ b/importer/src/lib.rs
+@@ -61 +61 @@ pub async fn oneshot(
+-        MapName::new("zz", "oneshot", &name),
++        MapName::new("cn", "chongqing", &name),
+diff --git a/map_gui/src/load.rs b/map_gui/src/load.rs
+index fd892c5..ad0b803 100644
+--- a/map_gui/src/load.rs
++++ b/map_gui/src/load.rs
+@@ -34 +34 @@ impl MapLoader {
+-            "hk" | "jp" | "tw" => Some("NotoSerifCJKtc-Regular.otf"),
++            "cn" | "hk" | "jp" | "tw" => Some("NotoSerifCJKtc-Regular.otf"),
+diff --git a/widgetry/src/lib.rs b/widgetry/src/lib.rs
+index 368b636..75d6f39 100644
+--- a/widgetry/src/lib.rs
++++ b/widgetry/src/lib.rs
+@@ -102,0 +103 @@ mod text;
++mod zh_cn;
+diff --git a/widgetry/src/text.rs b/widgetry/src/text.rs
+index cf39a2b..71fe7c4 100644
+--- a/widgetry/src/text.rs
++++ b/widgetry/src/text.rs
+@@ -164,0 +165 @@ pub fn Line<S: Into<String>>(text: S) -> TextSpan {
++    let text = text.into();
+@@ -166 +167 @@ pub fn Line<S: Into<String>>(text: S) -> TextSpan {
+-        text: text.into(),
++        text: crate::zh_cn::translate(&text),

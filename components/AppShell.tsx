@@ -2458,7 +2458,7 @@ export function AppShell() {
               </div>
             ) : (
               <div className="traffic-onboarding">
-                <span className="traffic-kicker">TRAFFIC INTELLIGENCE WORKSPACE</span>
+                <span className="traffic-kicker">交通智能工作空间</span>
                 <h1>Traffic Pi <span>交通智能体</span></h1>
                 <p>连接仿真软件，让交通问题从分析走向验证。</p>
                 <svg className="traffic-network" viewBox="0 0 500 80" fill="none" role="img" aria-label="交通路网示意，非实时数据">

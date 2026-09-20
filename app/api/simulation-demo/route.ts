@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   });
   return Response.json(received
     ? body.action === "start"
-      ? { status: "loading", message: "浏览器已加载早高峰启动页，沙盒正在初始化，将从 08:00 开始播放 Montlake 工作日交通。此操作重置了此前进度；未读取实时车辆数。" }
+      ? { status: "loading", message: "浏览器已加载重庆渝中半岛工作日场景，沙盒正在初始化，将从 08:00 开始播放固定种子 42 生成的合成交通。此操作重置了此前进度；未读取实时车辆数。" }
       : { status: "dispatched", action: body.action, message: "已向当前沙盒发送控制快捷键，未刷新页面或重置进度。暂停和继续会将速度归一到 1 倍。请以沙盒时钟和播放按钮为准；未读取内部仿真状态。" }
-    : { error: "浏览器未完成控制，可能画布未就绪或指令已过期。请在已加载完成的 Sandbox 中重试。" }, { status: received ? 200 : 504 });
+    : { error: "浏览器未完成控制，可能画布未就绪或指令已过期。请在已加载完成的沙盒中重试。" }, { status: received ? 200 : 504 });
 }

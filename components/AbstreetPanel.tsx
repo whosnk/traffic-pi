@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import styles from "./AbstreetPanel.module.css";
 import { controlCurrentSimulation } from "@/lib/simulation-control";
 
+const simulationUrl = "/abstreet/abstreet.html?../data/system/cn/chongqing/scenarios/yuzhong_core/weekday.bin&--time=08:00:00";
+
 export function AbstreetPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [started, setStarted] = useState(false);
   const [error, setError] = useState("");
@@ -65,10 +67,10 @@ export function AbstreetPanel({ open, onClose }: { open: boolean; onClose: () =>
   return <>
     <section data-open={open} inert={!open} aria-hidden={!open} className={styles.workspace} aria-label="交通仿真工作台">
       <header className={styles.toolbar}>
-        <div><small>TRAFFIC PI / SIMULATION</small><strong>交通仿真工作台</strong></div>
+        <div><small>TRAFFIC PI / 交通仿真</small><strong>交通仿真工作台</strong></div>
         <nav aria-label="仿真视图" className={styles.actions}>
         <span style={{ fontSize: 12, color: "var(--accent)" }}>自动接收 MCP 演示</span>
-        <a href="/abstreet/abstreet.html?--sandbox" target="_blank" rel="noopener noreferrer">独立打开</a>
+        <a href={simulationUrl} target="_blank" rel="noopener noreferrer">独立打开</a>
         <button type="button" onClick={async () => {
           try {
             setError("");
@@ -81,7 +83,7 @@ export function AbstreetPanel({ open, onClose }: { open: boolean; onClose: () =>
       </header>
       {error && <p role="status">{error}</p>}
       <div ref={viewport} className={styles.viewport}>
-        {started && <iframe key={demo} title="本地交通仿真" src={demo ? "/abstreet/abstreet.html?../data/system/us/seattle/scenarios/montlake/weekday.bin&--time=08:00:00" : "/abstreet/abstreet.html?--sandbox"} allow="fullscreen" onLoad={() => {
+        {started && <iframe key={demo} title="本地交通仿真" src={simulationUrl} allow="fullscreen" onLoad={() => {
           if (demo) void fetch("/api/simulation-demo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ack", id: demo, viewer: viewer.current }) }).catch(() => setError("演示启动确认失败，请重试。"));
         }} style={{ width: size.width / scale, height: size.height / scale, transform: `scale(${scale})`, transformOrigin: "top left" }} />}
       </div>
