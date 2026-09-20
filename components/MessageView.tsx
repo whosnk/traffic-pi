@@ -1001,6 +1001,16 @@ function isSubagentToolDetails(value: unknown): value is SubagentToolDetails {
   return details.kind === "pi-web-subagent" && typeof details.sessionId === "string";
 }
 
+function trafficGovernanceStep(toolName: string) {
+  if (!toolName.includes("mcp_traffic-demo_")) return null;
+  if (/get_simulation_state/.test(toolName)) return "1 · 读取仿真状态";
+  if (/get_(road|intersection)_metrics|highlight_roads|focus_on_road/.test(toolName)) return "2 · 检测并定位拥堵";
+  if (/get_signal_plan/.test(toolName)) return "3 · 分析拥堵原因";
+  if (/apply_signal_plan|restore_signal_plan/.test(toolName)) return "4 · 执行信号治理";
+  if (/capture_metrics|compare_metrics|run_(for|until)/.test(toolName)) return "5 · 同条件评估";
+  return "仿真控制";
+}
+
 function ToolCallBlock({ block, result, duration, onOpenSession }: { block: ToolCallContent; result?: ToolResultMessage; duration?: number; onOpenSession?: (sessionId: string) => void }) {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
@@ -1017,6 +1027,8 @@ function ToolCallBlock({ block, result, duration, onOpenSession }: { block: Tool
   const resultIsEmpty = resultText === null ? false : (resultText.trim() === "(no output)" || resultText.trim() === "");
   const isError = result?.isError ?? false;
   const subagent = isSubagentToolDetails(result?.details) ? result.details : null;
+  const trafficStep = trafficGovernanceStep(block.toolName);
+  const actionId = resultText?.match(/"actionId"\s*:\s*"([^"]+)/)?.[1];
 
   return (
     <div
@@ -1048,13 +1060,18 @@ function ToolCallBlock({ block, result, duration, onOpenSession }: { block: Tool
           }}
         >
           <span style={{ color: isError ? "#f87171" : "#16a34a", fontFamily: "var(--font-mono)", fontWeight: 600, fontSize: 11, flexShrink: 0 }}>
-            {block.toolName}
+            {trafficStep ?? block.toolName}
           </span>
           <span style={{ color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
             {isStreamingInput ? t("chat.generatingToolInput") : getToolPreview(block)}
           </span>
           {duration !== undefined && (
             <span style={{ fontSize: 11, color: "var(--text-dim)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{duration}s</span>
+          )}
+          {trafficStep && (
+            <span title={actionId ? `actionId: ${actionId}` : undefined} style={{ fontSize: 11, color: result ? (isError ? "#f87171" : "#16a34a") : "var(--accent)", flexShrink: 0 }}>
+              {result ? (isError ? "失败" : "已完成") : "执行中"}
+            </span>
           )}
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--text-dim)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
             <polyline points="2 3.5 5 6.5 8 3.5" />

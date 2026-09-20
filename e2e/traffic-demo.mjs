@@ -24,15 +24,20 @@ try {
   assert.equal(result.isError, false, JSON.stringify(result));
   assert.equal(JSON.parse(result.content[0].text).status, "loading");
   await page.frameLocator('iframe[title="本地交通仿真"]').locator("canvas").waitFor({ timeout: 60000 });
-  await page.waitForTimeout(15000);
+  await page.waitForFunction(() => {
+    const frame = document.querySelector('iframe[title="本地交通仿真"]');
+    return frame?.contentWindow?.trafficPi?.ready === true;
+  }, null, { timeout: 300000 });
   const frame = page.frames().find(item => item.url().includes("cn/chongqing/scenarios/yuzhong_core/weekday.bin") && item.url().includes("--time=08:00:00"));
   assert.ok(frame, "MCP must start the Chongqing rush-hour scene in the embedded frame");
   const canvas = frame.locator("canvas");
   const first = await canvas.screenshot({ path: ".next/traffic-demo-before.png" });
-  await page.waitForTimeout(3000);
+  const advanced = await client.callTool({ name: "run_for", arguments: { durationSeconds: 1 } });
+  assert.equal(advanced.isError, false, JSON.stringify(advanced));
+  assert.ok(JSON.parse(advanced.content[0].text).simulationTime > 28800);
   const second = await canvas.screenshot({ path: ".next/traffic-demo-after.png" });
-  assert.ok(!first.equals(second), "The running simulation must change on screen");
-  console.log("PASS: real MCP discovery/call, browser acknowledgment, rush-hour canvas changes, cross-origin rejection, invalid acknowledgment");
+  assert.ok(!first.equals(second), "Advancing the simulation must change the canvas");
+  console.log("PASS: real MCP discovery/call, browser acknowledgment, controlled rush-hour advance, cross-origin rejection, invalid acknowledgment");
   console.log(JSON.stringify(result));
 } finally {
   await client.close();

@@ -3,7 +3,7 @@
     "name": "traffic-demo",
     "transport": "stdio",
     "command": "node",
-    "args": ["E:/The work of PHD/Code/traffic-pi/mcp/traffic-demo.mjs"],
+    "args": ["mcp/traffic-demo.mjs"],
     "enabled": true
   }
 ]

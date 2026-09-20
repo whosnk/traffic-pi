@@ -1,4 +1,11 @@
 <!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>A/B Street · Traffic Pi</title><link rel="stylesheet" href="./abstreet.css"><style>html,body{height:100%;margin:0;overflow:hidden}.widgetry-app .preloading{color:#333}</style></head>
 <body><div class="widgetry-app full-screen-widgetry-app" id="app"><div class="preloading"><h1>A/B Street</h1><p>正在加载本地仿真……</p></div></div>
-<script type="module">import { ABStreet } from "./abstreet/abstreet.bundle.js";const app=new ABStreet("app");app.setAssetsBaseURL("./data");app.setAssetsAreGzipped(false);app.loadAndStart();</script></body></html>
+<script type="module">
+const commands=[];const pending=new Map();
+window.trafficPiTakeCommand=()=>{const command=commands.shift();return command?JSON.stringify(command):null};
+window.trafficPiRespond=(id,payload,ok)=>{const item=pending.get(id);if(!item)return;pending.delete(id);clearTimeout(item.timer);ok?item.resolve(JSON.parse(payload)):item.reject(new Error(payload))};
+window.trafficPiReady=()=>{window.trafficPi.ready=true};
+window.trafficPi={ready:false,request(action,params={}){return new Promise((resolve,reject)=>{const id=crypto.randomUUID();const timer=setTimeout(()=>{pending.delete(id);reject(new Error("A/B Street 控制接口执行超时。"))},60000);pending.set(id,{resolve,reject,timer});commands.push({id,action,params});const target=document.querySelector("canvas")||window;target.dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowLeft",code:"ArrowLeft",keyCode:37,bubbles:true}));target.dispatchEvent(new KeyboardEvent("keyup",{key:"ArrowLeft",code:"ArrowLeft",keyCode:37,bubbles:true}))})}};
+import { ABStreet } from "./abstreet/abstreet.bundle.js";const app=new ABStreet("app");app.setAssetsBaseURL("./data");app.setAssetsAreGzipped(false);app.loadAndStart();
+</script></body></html>

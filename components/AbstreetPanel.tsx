@@ -22,20 +22,22 @@ export function AbstreetPanel({ open, onClose }: { open: boolean; onClose: () =>
         if (document.visibilityState === "visible") {
           const response = await fetch(`/api/simulation-demo?viewer=${viewer.current}`);
           if (response.ok) {
-            const { command, action } = await response.json();
-            if (!stopped && command && pending.current !== command) {
-              pending.current = command;
-              if (action === "start") setDemo(command);
+            const { command } = await response.json();
+            if (!stopped && command && pending.current !== command.id) {
+              pending.current = command.id;
+              if (command.action === "start") setDemo(command.id);
               else {
                 let ok = false;
+                let result: unknown;
+                let message = "";
                 try {
                   const doc = viewport.current?.querySelector("iframe")?.contentDocument;
                   if (!doc) throw new Error("当前仿真尚未加载。");
-                  await controlCurrentSimulation(doc, action);
+                  result = await controlCurrentSimulation(doc, command.action, command.params);
                   setError("");
                   ok = true;
-                } catch (error) { setError(String(error)); }
-                await fetch("/api/simulation-demo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ack", id: command, viewer: viewer.current, ok }) });
+                } catch (error) { message = error instanceof Error ? error.message : String(error); setError(message); }
+                await fetch("/api/simulation-demo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ack", id: command.id, viewer: viewer.current, ok, result, error: message }) });
               }
             }
           }
@@ -84,7 +86,7 @@ export function AbstreetPanel({ open, onClose }: { open: boolean; onClose: () =>
       {error && <p role="status">{error}</p>}
       <div ref={viewport} className={styles.viewport}>
         {started && <iframe key={demo} title="本地交通仿真" src={simulationUrl} allow="fullscreen" onLoad={() => {
-          if (demo) void fetch("/api/simulation-demo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ack", id: demo, viewer: viewer.current }) }).catch(() => setError("演示启动确认失败，请重试。"));
+          if (demo) void fetch("/api/simulation-demo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ack", id: demo, viewer: viewer.current, result: { message: "场景正在重新加载。", simulationTime: null } }) }).catch(() => setError("演示启动确认失败，请重试。"));
         }} style={{ width: size.width / scale, height: size.height / scale, transform: `scale(${scale})`, transformOrigin: "top left" }} />}
       </div>
       <footer className={styles.footer}><span>本地仿真 · 手动操作</span><span>左侧对话 · 右侧场景</span></footer>

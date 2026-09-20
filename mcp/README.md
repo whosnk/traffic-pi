@@ -1,28 +1,18 @@
-# 车辆行驶演示 MCP
+# 交通治理 MCP
 
-## 控制当前仿真（不重置）
+`traffic-demo.mjs` 连接当前唯一的仿真工作台，并把每次调用关联到右侧 A/B Street 画布。所有工具统一返回 `actionId`、`status`、`simulationTime`、`result` 和 `error`。
 
-已有对话先执行 `/reload` 以发现新增工具。在沙盒加载完成、无弹窗时可说“暂停当前仿真”“继续当前仿真”“加速一档”，分别调用 `pause_current_simulation`、`resume_current_simulation`、`speed_up_current_simulation`。
+启动 Traffic Pi：`npm run dev`。打开侧边栏“仿真工作台”并保持一个前台工作台。项目已经通过 `.pi/mcp.json` 注册服务器；已有对话执行 `/reload` 后即可发现新增工具。
 
-这些工具向当前画布发送沙盒原生快捷键，保留地图、时间和进度。暂停/继续会将速度归一到 1 倍；加速依次为 1、5、30、3600 倍。午夜没有车时可加速推进时间，而不必重新加载。弹窗或非沙盒页面可能拦截快捷键，工具返回的是发送确认，不是读取到的内部播放状态。
+工具分为：
 
-下面的 `start_rush_hour_demo` 仍是明确重置到早高峰的快捷演示，和上述当前实例控制不同。
+- 状态与指标：`get_simulation_state`、`get_road_metrics`、`get_intersection_metrics`
+- 画面联动：`focus_on_road`、`highlight_roads`、`clear_highlights`
+- 时间控制：`pause_current_simulation`、`resume_current_simulation`、`speed_up_current_simulation`、`run_until`、`run_for`
+- 信号治理：`get_signal_plan`、`apply_signal_plan`、`restore_signal_plan`
+- 同条件评估：`capture_metrics`、`compare_metrics`
+- 演示重置：`start_rush_hour_demo`
 
-运行 Traffic Pi：`npm run dev`。打开一个仿真工作台并保持前台可见，即会自动接收 MCP 演示，无需点击开关。收起工作台或关闭页面后停止接收；不要同时打开多个前台工作台。
+`apply_signal_plan` 会在首次修改前保存原方案；`restore_signal_plan` 用它恢复基准。`capture_metrics` 的方案组通过 `baselineCaptureId` 回到基准检查点，在当前信号方案下使用相同场景、随机种子、起点和统计时长重跑。条件不一致或右侧执行失败时，MCP 返回失败，不生成替代数据。
 
-在当前项目的 **MCP 工具** 添加：
-
-- 名称：`traffic-demo`
-- 连接方式：`stdio`
-- 命令：`node`
-- 参数：`["E:/The work of PHD/Code/traffic-pi/mcp/traffic-demo.mjs"]`
-
-保存并启用，信任项目后测试连接，应显示 `start_rush_hour_demo`。新建对话或发送 `/reload`，使用支持工具调用的模型，工具模式不能是 Chat only。
-
-先打开工作台，在左侧输入：**调用 start_rush_hour_demo，开始早高峰车辆行驶演示。**
-
-工具通过真实 MCP stdio 协议通知本地网页；网页重新加载重庆渝中半岛工作日场景，从 08:00 自动播放。地图来自 OpenStreetMap，出行需求由固定种子 42 合成。每次调用都会重置仿真进度。普通打开工作台也直接进入沙盒，不再展示首页菜单。
-
-工具返回的是浏览器已加载启动页的确认，仿真随后还需初始化；不读取或虚构实时车辆数。当前只支持本机 30141 端口、无访问密码的单工作台演示。没有打开工作台、多窗口或加载超时都会返回错误。
-
-A/B Street v0.3.49 的 `apps/game/src/lib.rs` 支持场景路径和 `--time` 参数，`abstutil/src/cli.rs` 将 URL 中的 `&` 分隔参数转换为命令行参数。本地 WASM 加入了中文文案映射和中文字体加载。
+推荐让 `traffic-governance` Skill 编排完整流程。第一版仅执行信号配时治理，默认根据真实拥堵指标自动选择道路和信号路口，也接受用户指定的目标。
