@@ -20,6 +20,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import type { SessionStatsInfo } from "@/lib/pi-types";
 import type { AppUpdateResponse } from "@/lib/api-types";
 import type { ToolEntry } from "@/lib/tool-presets";
+import { geoSceneFromMessage, type GeoScene } from "@/lib/geo-types";
 import { findChatScrollAnchor, type ChatScrollPosition } from "@/lib/chat-scroll-position";
 import {
   captureScrollDistance,
@@ -64,6 +65,7 @@ interface Props {
   onSoundToggle?: () => void;
   playDoneSound?: () => void;
   unlockAudio?: () => void;
+  onGeoScene?: (sessionId: string, scene: GeoScene) => void;
 }
 
 function phaseLabel(phase: AgentPhase, t: (key: string, params?: Record<string, string | number>) => string): string | null {
@@ -85,6 +87,33 @@ function phaseLabel(phase: AgentPhase, t: (key: string, params?: Record<string, 
 
 const CHAT_MINIMAP_WIDTH = 36;
 const CHAT_COLUMN_PADDING = 16;
+
+const trafficSkillCards = [
+  {
+    name: "traffic-simulation",
+    title: "仿真控制",
+    description: "加载场景、推进仿真并读取状态与拥堵指标。",
+    tools: ["get_simulation_state", "run_until", "get_road_metrics"],
+    output: "仿真状态 · 道路指标",
+    prompt: "请使用 traffic-simulation skill 检查当前重庆场景，确认仿真状态后运行到目标时段，并返回道路速度、流量、排队和延误指标。",
+  },
+  {
+    name: "traffic-signal-analysis",
+    title: "信号配时分析",
+    description: "用真实路口流量、排队和相位数据诊断配时。",
+    tools: ["get_intersection_metrics", "get_signal_plan", "apply_signal_plan"],
+    output: "路口诊断 · 配时方案",
+    prompt: "请使用 traffic-signal-analysis skill 读取当前拥堵路口的流量、排队和信号方案，先给出诊断与建议，执行修改前向我确认。",
+  },
+  {
+    name: "traffic-scenario-comparison",
+    title: "方案对比评估",
+    description: "在相同场景、需求和随机种子下比较候选方案。",
+    tools: ["capture_metrics", "compare_metrics", "publish_geo_scene"],
+    output: "延误 · 速度 · 排队 · GIS",
+    prompt: "请使用 traffic-scenario-comparison skill 检查两个交通方案的可比条件，采集并比较真实指标，最后把道路差异发布到 GIS。",
+  },
+] as const;
 
 function NewSessionUpdateLink({
   label,
@@ -238,7 +267,7 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
   );
 }
 
-export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, newSessionCwd, newSessionDraftKey, onAgentEnd, onAttentionNeeded, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile, onOpenSession, onAskInNewChat, quoteSelectionEnabled = false, initialPrompt, onInitialPromptConsumed, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio }: Props) {
+export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, newSessionCwd, newSessionDraftKey, onAgentEnd, onAttentionNeeded, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile, onOpenSession, onAskInNewChat, quoteSelectionEnabled = false, initialPrompt, onInitialPromptConsumed, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, onGeoScene }: Props) {
   const { t } = useI18n();
   const isMobile = useIsMobile();
   const completionNotificationsEnabled = session?.relation?.kind !== "subagent";
@@ -294,6 +323,13 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsPanelOpen,
     deferInitialScroll: Boolean(pendingScrollRestore),
   });
+  useEffect(() => {
+    if (!session?.id || !onGeoScene) return;
+    for (const message of messages) {
+      const scene = geoSceneFromMessage(message);
+      if (scene) onGeoScene(session.id, scene);
+    }
+  }, [messages, onGeoScene, session?.id]);
   const sessionBusy = agentRunning || bashRunning;
   const [quotedSelection, setQuotedSelection] = useState<{
     text: string;
@@ -1338,6 +1374,13 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
               <span className="traffic-kicker">从交通问题，到仿真决策</span>
               <h1>今天，想改善哪一段交通？</h1>
               <p>描述你的场景与目标，由交通智能体协助运行仿真、识别拥堵与评估方案。</p>
+              <div className="traffic-flow-strip" aria-label="交通智能体工作流">
+                <span className="traffic-flow-step"><b>01</b>描述问题</span>
+                <i aria-hidden="true">→</i>
+                <span className="traffic-flow-step"><b>02</b>MCP 分析</span>
+                <i aria-hidden="true">→</i>
+                <span className="traffic-flow-step"><b>03</b>仿真与 GIS 验证</span>
+              </div>
               <svg className="traffic-network" viewBox="0 0 500 80" fill="none" aria-label="交通路网示意图，非实时仿真">
                 <path d="M0 20H500M0 60H500M90 0V80M250 0V80M410 0V80" stroke="currentColor" strokeWidth="9" opacity=".12" />
                 <path d="M0 20H250V60H500M90 0V80M410 0V80" stroke="currentColor" strokeWidth="2" strokeDasharray="5 6" />
@@ -1354,6 +1397,19 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                 <span className="traffic-task-number">0{index + 1}</span><strong>{title}</strong><span>{subtitle}</span>
               </button>)}
             </div>
+            <details className="traffic-skill-showcase">
+              <summary><span><b>SKILL ORCHESTRATION</b>交通技能联动</span><small>3 个预置 skill · 点击查看工具链</small></summary>
+              <div className="traffic-skill-grid">
+                {trafficSkillCards.map((skill, index) => <button key={skill.name} type="button" className="traffic-skill-card" onClick={() => chatInputRef?.current?.insertIfEmpty(skill.prompt)}>
+                  <div className="traffic-skill-card-head"><span>0{index + 1}</span><em>已配置</em></div>
+                  <strong>{skill.title}</strong>
+                  <code>{skill.name}</code>
+                  <p>{skill.description}</p>
+                  <div className="traffic-skill-tools">{skill.tools.map((tool) => <span key={tool}>{tool}</span>)}</div>
+                  <small>输出：{skill.output} →</small>
+                </button>)}
+              </div>
+            </details>
           </div>
         )}
         {chatInputElement}

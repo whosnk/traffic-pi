@@ -1,4 +1,4 @@
-.traffic-welcome-copy { position: relative; overflow: hidden; padding: 22px; }
+.traffic-welcome-copy { position: relative; overflow: hidden; padding: 22px; box-shadow: 0 16px 44px color-mix(in srgb, var(--accent) 7%, transparent); }
 .traffic-onboarding { width: min(640px, 100%); margin: auto; padding: clamp(24px, 5vw, 56px); }
 .traffic-onboarding h1 { font-size: clamp(26px, 4vw, 40px); font-weight: 700; letter-spacing: -.04em; margin: 16px 0; }
 .traffic-onboarding h1 span { display: block; color: var(--accent); }
@@ -7,24 +7,72 @@
 .traffic-welcome-copy h1 { margin: 12px 0; font-size: clamp(20px, 3vw, 30px); letter-spacing: -.04em; line-height: 1.3; }
 .traffic-network { display: block; width: 100%; height: 64px; color: var(--accent); margin-top: 16px; }
 .traffic-task-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
-.traffic-task-grid button { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; text-align: left; padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); cursor: pointer; }
-.traffic-task-grid button:hover { border-color: var(--accent); background: var(--bg-panel); }
+.traffic-task-grid button { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; min-height: 104px; text-align: left; padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: color-mix(in srgb, var(--bg) 92%, var(--accent)); color: var(--text); cursor: pointer; transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease; }
+.traffic-task-grid button:hover { border-color: var(--accent); background: var(--bg-panel); transform: translateY(-2px); box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 10%, transparent); }
+.traffic-task-grid button:first-child { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); background: color-mix(in srgb, var(--accent) 12%, var(--bg)); }
 .traffic-task-grid button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .traffic-task-grid button > span { font-size: 11px; color: var(--text-muted); }
 .traffic-task-grid button > .traffic-task-number { color: var(--accent); font-family: var(--font-mono); }
+.traffic-skill-showcase { margin-top: 12px; border: 1px solid var(--border); border-radius: 10px; background: color-mix(in srgb, var(--bg-panel) 55%, transparent); }
+.traffic-skill-showcase summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; color: var(--text); cursor: pointer; list-style: none; }
+.traffic-skill-showcase summary::-webkit-details-marker { display: none; }
+.traffic-skill-showcase summary::before { content: "＋"; color: var(--accent); font-size: 15px; }
+.traffic-skill-showcase[open] summary::before { content: "−"; }
+.traffic-skill-showcase summary > span { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; }
+.traffic-skill-showcase summary b { color: var(--accent); font-family: var(--font-mono); font-size: 9px; letter-spacing: .08em; }
+.traffic-skill-showcase summary small { color: var(--text-muted); font-size: 11px; }
+.traffic-skill-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 0 8px 8px; }
+.traffic-skill-card { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 6px; padding: 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); text-align: left; cursor: pointer; }
+.traffic-skill-card:hover { border-color: var(--accent); background: var(--bg-hover); }
+.traffic-skill-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.traffic-skill-card-head { display: flex; width: 100%; align-items: center; justify-content: space-between; color: var(--accent); font-family: var(--font-mono); font-size: 10px; }
+.traffic-skill-card-head em { padding: 2px 5px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); font-family: inherit; font-size: 9px; font-style: normal; }
+.traffic-skill-card code { overflow: hidden; max-width: 100%; color: var(--text-muted); font-family: var(--font-mono); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.traffic-skill-card p { margin: 0; color: var(--text-muted); font-size: 11px; line-height: 1.45; }
+.traffic-skill-tools { display: flex; width: 100%; flex-wrap: wrap; gap: 4px; }
+.traffic-skill-tools span { padding: 3px 5px; border-radius: 4px; background: var(--bg-subtle); color: var(--text-dim); font-family: var(--font-mono); font-size: 9px; }
+.traffic-skill-card > small { color: var(--accent); font-size: 10px; }
 .traffic-navigation button { flex: none !important; justify-content: flex-start !important; padding-left: 12px !important; }
 .traffic-chat-column { transition: flex-grow 220ms ease, flex-basis 220ms ease; }
-.traffic-simulation-layout > .traffic-chat-column { flex: 0 1 clamp(360px, 32vw, 480px) !important; border-right: 1px solid var(--border); }
+.traffic-workspace-layout > .traffic-chat-column { flex: 0 1 clamp(360px, 32vw, 480px) !important; border-right: 1px solid var(--border); }
 @media (prefers-reduced-motion: reduce) { .traffic-chat-column { transition: none; } }
-.traffic-chat-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 16px; border-bottom: 1px solid var(--border); }
+.traffic-chat-heading { display: flex; flex-shrink: 0; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.traffic-chat-heading > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.traffic-chat-heading span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.traffic-chat-heading button, .traffic-result-notice button { flex-shrink: 0; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-panel); color: var(--text); cursor: pointer; font-size: 11px; }
+.traffic-result-notice { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 16px; background: color-mix(in srgb, #3b82f6 10%, var(--bg-panel)); color: var(--text); font-size: 12px; }
 .traffic-chat-heading strong { color: var(--accent); font-size: 15px; }
 .traffic-chat-heading span { color: var(--text-muted); font-size: 11px; }
-.traffic-simulation-layout .traffic-task-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.traffic-simulation-layout .traffic-welcome-copy { padding: 16px; }
-.traffic-simulation-layout .traffic-welcome-copy h1 { font-size: 22px; }
-.traffic-simulation-layout .traffic-network { display: none; }
-.traffic-simulation-layout > #file-panel, .traffic-simulation-layout > .right-panel-resize-handle { display: none !important; }
-@media (max-width: 800px) { .traffic-simulation-layout { flex-direction: column; } .traffic-simulation-layout > .traffic-chat-column { flex: 0 0 45% !important; width: 100%; } }
+.traffic-workspace-layout .traffic-task-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.traffic-workspace-layout .traffic-welcome-copy { padding: 16px; }
+.traffic-workspace-layout .traffic-welcome-copy h1 { font-size: 22px; }
+.traffic-workspace-layout .traffic-network { display: none; }
+.traffic-workspace-layout > #file-panel, .traffic-workspace-layout > .right-panel-resize-handle { display: none !important; }
+.traffic-workspace { --traffic-tool-accent: #60a5fa; flex: 0 1 0%; min-width: 0; min-height: 0; display: flex; flex-direction: column; border: 0 solid var(--border); border-radius: 12px; background: var(--bg-panel); color: var(--text); overflow: hidden; opacity: 0; visibility: hidden; transform: translateX(12px); transition: opacity 180ms ease, transform 180ms ease; }
+.traffic-workspace[data-open="true"] { flex-grow: 2; margin: 10px; border-width: 1px; opacity: 1; visibility: visible; transform: none; }
+.traffic-workspace[data-view="simulation"] { --traffic-tool-accent: #fb923c; }
+html:not(.dark) .traffic-workspace { --traffic-tool-accent: #2563eb; }
+html:not(.dark) .traffic-workspace[data-view="simulation"] { --traffic-tool-accent: #c2410c; }
+.traffic-workspace-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.traffic-workspace-header > div { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.traffic-workspace-header small { color: var(--traffic-tool-accent); font-size: 10px; letter-spacing: .1em; }
+.traffic-workspace-header strong { font-size: 15px; }
+.traffic-workspace-header span { color: var(--text-muted); font-size: 11px; }
+.traffic-workspace button { border: 1px solid var(--border); border-radius: 6px; padding: 6px 9px; background: var(--bg-panel); color: var(--text); font-size: 12px; cursor: pointer; }
+.traffic-workspace button:hover { background: var(--bg-hover); }
+.traffic-workspace button:focus-visible, .traffic-chat-heading button:focus-visible, .traffic-result-notice button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.traffic-workspace-views { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.traffic-workspace-views button { display: inline-flex; align-items: center; gap: 7px; height: 32px; }
+.traffic-workspace-views button[aria-pressed="true"] { color: var(--traffic-tool-accent); border-color: var(--traffic-tool-accent); background: color-mix(in srgb, var(--traffic-tool-accent) 9%, var(--bg-panel)); }
+.traffic-workspace-views .traffic-view-result { margin-left: auto; }
+.traffic-result-badge { padding: 2px 5px; border-radius: 4px; background: color-mix(in srgb, #3b82f6 15%, var(--bg)); color: var(--text); font-size: 10px; }
+.traffic-workspace-content { position: relative; flex: 1; min-height: 0; }
+.traffic-workspace-pane { position: absolute; inset: 0; opacity: 0; visibility: hidden; pointer-events: none; }
+.traffic-workspace-pane[data-visible="true"] { opacity: 1; visibility: inherit; pointer-events: auto; }
+.traffic-workspace-pane .geo-map { min-height: 0; }
+.traffic-workspace-pane .geo-toolbar strong { color: var(--traffic-tool-accent); }
+@media (prefers-reduced-motion: reduce) { .traffic-workspace { transition: none; } }
+@media (max-width: 960px) { .traffic-workspace-layout { flex-direction: column; } .traffic-workspace-layout > .traffic-chat-column { flex: 0 0 45% !important; width: 100%; border-right: 0; border-bottom: 1px solid var(--border); } .traffic-workspace-header { padding: 8px 12px; } }
 .traffic-mcp-panel { padding: 24px; overflow: auto; width: 100%; height: 100%; color: var(--text); }
 .traffic-mcp-panel h2 { font-size: 24px; margin: 8px 0; }
 .traffic-mcp-panel p { color: var(--text-muted); margin: 12px 0; overflow-wrap: anywhere; }
@@ -35,5 +83,15 @@
 .traffic-mcp-panel button:disabled { opacity: .5; cursor: default; }
 .traffic-mcp-panel article { border-top: 1px solid var(--border); padding: 14px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .traffic-mcp-panel article span { font-size: 12px; color: var(--text-muted); }
+.geo-panel { display: flex; flex-direction: column; height: 100%; color: var(--text); background: var(--bg); }
+.geo-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px; }
+.geo-toolbar span { color: var(--text-muted); }
+.geo-toolbar button { margin-left: auto; padding: 5px 8px; border: 1px solid var(--border); border-radius: 5px; background: var(--bg-panel); color: var(--text); cursor: pointer; }
+.geo-map { flex: 1; min-height: 180px; }
+.geo-layers { display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 8px 12px; border-top: 1px solid var(--border); font-size: 12px; }
+.geo-layers label { display: inline-flex; align-items: center; gap: 5px; color: var(--text-muted); }
+.geo-empty, .geo-error { padding: 24px; color: var(--text-muted); }
 @media (max-width: 800px) { .traffic-task-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .traffic-flow-strip { align-items: flex-start; flex-direction: column; gap: 5px; } .traffic-flow-strip i { display: none; } .traffic-task-grid { grid-template-columns: 1fr; } .traffic-task-grid button { min-height: 84px; } }
+@media (max-width: 800px) { .traffic-skill-grid { grid-template-columns: 1fr; } }
 @media (max-height: 720px) { .traffic-network { display: none; } .traffic-welcome-copy { padding: 12px; } }

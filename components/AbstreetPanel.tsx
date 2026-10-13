@@ -6,14 +6,14 @@ import { controlCurrentSimulation } from "@/lib/simulation-control";
 
 const simulationUrl = "/abstreet/abstreet.html?../data/system/cn/chongqing/scenarios/yuzhong_core/weekday.bin&--time=08:00:00";
 
-export function AbstreetPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function AbstreetPanel({ open, receiving }: { open: boolean; receiving: boolean }) {
   const [started, setStarted] = useState(false);
   const [error, setError] = useState("");
   const [demo, setDemo] = useState("");
   const viewer = useRef("");
   const pending = useRef("");
   useEffect(() => {
-    if (!open) return;
+    if (!receiving || !started) return;
     viewer.current ||= crypto.randomUUID();
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -46,7 +46,7 @@ export function AbstreetPanel({ open, onClose }: { open: boolean; onClose: () =>
     }
     void poll().catch(() => {});
     return () => { stopped = true; clearTimeout(timer); };
-  }, [open]);
+  }, [receiving, started]);
   const viewport = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 1500, height: 900 });
   useEffect(() => {
@@ -67,9 +67,9 @@ export function AbstreetPanel({ open, onClose }: { open: boolean; onClose: () =>
   if (open && !started) setStarted(true);
 
   return <>
-    <section data-open={open} inert={!open} aria-hidden={!open} className={styles.workspace} aria-label="交通仿真工作台">
+    <section inert={!open} aria-hidden={!open} className={styles.workspace} aria-label="交通仿真工作台">
       <header className={styles.toolbar}>
-        <div><small>TRAFFIC PI / 交通仿真</small><strong>交通仿真工作台</strong></div>
+        <div><small>方案验证</small><strong>本地仿真实例</strong><span className={styles.sceneChip}>重庆 · 渝中半岛 · 初始时间 08:00</span></div>
         <nav aria-label="仿真视图" className={styles.actions}>
         <span style={{ fontSize: 12, color: "var(--accent)" }}>自动接收 MCP 演示</span>
         <a href={simulationUrl} target="_blank" rel="noopener noreferrer">独立打开</a>
@@ -80,7 +80,6 @@ export function AbstreetPanel({ open, onClose }: { open: boolean; onClose: () =>
             else await document.documentElement.requestFullscreen();
           } catch { setError("当前浏览器无法切换全屏，可使用独立打开。"); }
         }}>切换全屏</button>
-        <button type="button" onClick={onClose} aria-label="收起仿真">收起</button>
         </nav>
       </header>
       {error && <p role="status">{error}</p>}
@@ -89,7 +88,7 @@ export function AbstreetPanel({ open, onClose }: { open: boolean; onClose: () =>
           if (demo) void fetch("/api/simulation-demo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ack", id: demo, viewer: viewer.current, result: { message: "场景正在重新加载。", simulationTime: null } }) }).catch(() => setError("演示启动确认失败，请重试。"));
         }} style={{ width: size.width / scale, height: size.height / scale, transform: `scale(${scale})`, transformOrigin: "top left" }} />}
       </div>
-      <footer className={styles.footer}><span>本地仿真 · 手动操作</span><span>左侧对话 · 右侧场景</span></footer>
+      <footer className={styles.footer}><span>共享本地实例 · 切换会话保留进度</span><span>收起工作区不暂停仿真</span></footer>
     </section>
   </>;
 }

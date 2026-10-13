@@ -28,6 +28,51 @@ function tool(name, description, inputSchema, action = name) {
   server.registerTool(name, { description, inputSchema }, async (params) => dispatch(action, params));
 }
 
+function validateGeoScene(scene) {
+  if (!scene || typeof scene !== "object" || !Number.isInteger(scene.revision) || scene.revision < 0 || !Array.isArray(scene.sources) || !Array.isArray(scene.layers)) return "场景必须包含 revision、sources 和 layers。";
+  let featureCount = 0;
+  const sourceIds = new Set();
+  const featureIds = new Set();
+  for (const source of scene.sources) {
+    if (!source || typeof source.id !== "string" || sourceIds.has(source.id) || !source.data || source.data.type !== "FeatureCollection" || !Array.isArray(source.data.features)) return "GeoJSON 数据源无效。";
+    sourceIds.add(source.id);
+    featureCount += source.data.features.length;
+    if (featureCount > 1000) return "单个地图场景最多包含 1000 个要素。";
+    for (const feature of source.data.features) {
+      if (!feature || feature.type !== "Feature" || (typeof feature.id !== "string" && typeof feature.id !== "number") || featureIds.has(feature.id) || (feature.geometry && !validGeometry(feature.geometry))) return "GeoJSON 要素几何类型或 ID 无效。";
+      featureIds.add(feature.id);
+    }
+  }
+  const layerIds = new Set();
+  if (scene.layers.some((layer) => !layer || typeof layer.id !== "string" || layerIds.has(layer.id) || !sourceIds.has(layer.sourceId) || !["line", "circle", "fill"].includes(layer.type))) return "地图图层引用或类型无效。";
+  for (const layer of scene.layers) layerIds.add(layer.id);
+  if (Buffer.byteLength(JSON.stringify(scene), "utf8") > 2_000_000) return "地图场景过大，请先聚合数据。";
+  return null;
+}
+
+function validGeometry(geometry) {
+  if (!geometry || typeof geometry !== "object" || !["Point", "MultiPoint", "LineString", "MultiLineString", "Polygon", "MultiPolygon"].includes(geometry.type)) return false;
+  const position = (value) => Array.isArray(value) && value.length >= 2 && value.every((item) => typeof item === "number" && Number.isFinite(item)) && value[0] >= -180 && value[0] <= 180 && value[1] >= -90 && value[1] <= 90;
+  const line = (value) => Array.isArray(value) && value.length >= 2 && value.every(position);
+  const polygon = (value) => Array.isArray(value) && value.length > 0 && value.every((ring) => Array.isArray(ring) && ring.length >= 4 && ring.every(position) && JSON.stringify(ring[0]) === JSON.stringify(ring[ring.length - 1]));
+  if (geometry.type === "Point") return position(geometry.coordinates);
+  if (geometry.type === "MultiPoint") return Array.isArray(geometry.coordinates) && geometry.coordinates.length > 0 && geometry.coordinates.every(position);
+  if (geometry.type === "LineString") return line(geometry.coordinates);
+  if (geometry.type === "MultiLineString") return Array.isArray(geometry.coordinates) && geometry.coordinates.length > 0 && geometry.coordinates.every(line);
+  if (geometry.type === "Polygon") return polygon(geometry.coordinates);
+  return Array.isArray(geometry.coordinates) && geometry.coordinates.length > 0 && geometry.coordinates.every(polygon);
+}
+
+server.registerTool("publish_geo_scene", {
+  description: "在 Traffic Pi GIS 面板发布道路或交通指标 GeoJSON 图层。Feature.id 应使用稳定的道路 ID。",
+  inputSchema: { scene: z.record(z.string(), z.unknown()) },
+}, async ({ scene }) => {
+  const error = validateGeoScene(scene);
+  if (error) return { isError: true, content: [{ type: "text", text: error }] };
+  const payload = { type: "traffic-pi-geo", scene: { ...scene, type: "traffic-pi-geo" } };
+  return { content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload };
+});
+
 tool("start_rush_hour_demo", "重置并加载重庆渝中半岛工作日场景。仅在明确要求重置时使用。", {}, "start");
 tool("pause_current_simulation", "暂停当前仿真并返回真实状态。", {}, "pause");
 tool("resume_current_simulation", "以 1 倍速度继续当前仿真并返回真实状态。", {}, "resume");

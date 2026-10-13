@@ -15,7 +15,7 @@ try {
   assert.equal(invalid.status, 409);
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
   await page.goto("http://127.0.0.1:30141/?cwd=" + encodeURIComponent(process.cwd()));
-  await page.getByRole("button", { name: "▧ 仿真工作台", exact: true }).click();
+  await page.getByRole("button", { name: "仿真 · 方案验证" }).click();
   await page.getByText("自动接收 MCP 演示", { exact: true }).waitFor();
   assert.equal(await page.getByRole("button", { name: "接收 MCP 演示", exact: true }).count(), 0);
   await page.waitForResponse(response => response.url().includes("/api/simulation-demo?viewer=") && response.ok());
@@ -32,12 +32,14 @@ try {
   assert.ok(frame, "MCP must start the Chongqing rush-hour scene in the embedded frame");
   const canvas = frame.locator("canvas");
   const first = await canvas.screenshot({ path: ".next/traffic-demo-before.png" });
+  await page.getByRole("button", { name: /GIS · 路网观察/ }).click();
   const advanced = await client.callTool({ name: "run_for", arguments: { durationSeconds: 1 } });
   assert.equal(advanced.isError, false, JSON.stringify(advanced));
   assert.ok(JSON.parse(advanced.content[0].text).simulationTime > 28800);
+  await page.getByRole("button", { name: "仿真 · 方案验证" }).click();
   const second = await canvas.screenshot({ path: ".next/traffic-demo-after.png" });
   assert.ok(!first.equals(second), "Advancing the simulation must change the canvas");
-  console.log("PASS: real MCP discovery/call, browser acknowledgment, controlled rush-hour advance, cross-origin rejection, invalid acknowledgment");
+  console.log("PASS: real MCP discovery/call, browser acknowledgment, controlled advance while GIS is visible, cross-origin rejection, invalid acknowledgment");
   console.log(JSON.stringify(result));
 } finally {
   await client.close();
