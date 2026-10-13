@@ -1,0 +1,23 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "重庆渝中半岛核心区"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [106.514, 29.535],
+            [106.591, 29.535],
+            [106.591, 29.579],
+            [106.514, 29.579],
+            [106.514, 29.535]
+          ]
+        ]
+      }
+    }
+  ]
+}

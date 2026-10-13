@@ -79,6 +79,8 @@ html.dark {
 .traffic-signal-mark i:nth-child(2) { background: #f59e0b; }
 .traffic-signal-mark i:last-child { background: #22c55e; }
 
+.traffic-welcome { position: relative; isolation: isolate; }
+.traffic-welcome::before { content: ""; position: absolute; inset: 0 20px 8px; z-index: -1; pointer-events: none; border-radius: 24px; background: radial-gradient(circle at 12% 10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 42%), radial-gradient(circle at 90% 70%, color-mix(in srgb, #3b82f6 9%, transparent), transparent 38%); }
 .traffic-welcome-copy {
   margin-top: 14px;
   padding: 14px 16px;
@@ -101,6 +103,11 @@ html.dark {
   font-size: 13px;
   line-height: 1.6;
 }
+
+.traffic-flow-strip { display: flex; align-items: center; gap: 9px; margin-top: 16px; padding-top: 12px; border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent); color: var(--text-muted); font-size: 11px; }
+.traffic-flow-step { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.traffic-flow-step b { color: var(--accent); font-family: var(--font-mono); font-size: 10px; }
+.traffic-flow-strip i { color: var(--text-dim); font-style: normal; }
 
 .traffic-capabilities {
   display: grid;

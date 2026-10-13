@@ -4,7 +4,7 @@ import { controlCurrentSimulation } from "../lib/simulation-control.ts";
 const browser = await chromium.launch({ channel: "msedge" });
 try {
   const page = await browser.newPage({ viewport: { width: 1500, height: 900 } });
-  await page.goto("http://127.0.0.1:30141/abstreet/abstreet.html?../data/system/us/seattle/scenarios/montlake/weekday.bin&--time=08:00:00");
+  await page.goto("http://127.0.0.1:30141/abstreet/abstreet.html?../data/system/cn/chongqing/scenarios/yuzhong_core/weekday.bin&--time=08:00:00");
   await page.waitForTimeout(15000);
   const documentId = await page.evaluate(() => performance.timeOrigin);
   async function control(action) {

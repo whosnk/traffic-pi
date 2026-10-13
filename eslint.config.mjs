@@ -1,7 +1,9 @@
 import coreWebVitals from "eslint-config-next/core-web-vitals";
 import typescript from "eslint-config-next/typescript";
+import { globalIgnores } from "eslint/config";
 
 const eslintConfig = [
+  globalIgnores(["tmp_abstreet_source/**"]),
   ...coreWebVitals,
   ...typescript,
   {

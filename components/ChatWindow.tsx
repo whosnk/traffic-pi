@@ -20,6 +20,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import type { SessionStatsInfo } from "@/lib/pi-types";
 import type { AppUpdateResponse } from "@/lib/api-types";
 import type { ToolEntry } from "@/lib/tool-presets";
+import { geoSceneFromMessage, type GeoScene } from "@/lib/geo-types";
 import { findChatScrollAnchor, type ChatScrollPosition } from "@/lib/chat-scroll-position";
 import {
   captureScrollDistance,
@@ -64,6 +65,8 @@ interface Props {
   onSoundToggle?: () => void;
   playDoneSound?: () => void;
   unlockAudio?: () => void;
+  onGeoScene?: (sessionId: string, scene: GeoScene) => void;
+  onToolResult?: (sessionId: string, message: ToolResultMessage) => void;
 }
 
 function phaseLabel(phase: AgentPhase, t: (key: string, params?: Record<string, string | number>) => string): string | null {
@@ -238,7 +241,7 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
   );
 }
 
-export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, newSessionCwd, newSessionDraftKey, onAgentEnd, onAttentionNeeded, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile, onOpenSession, onAskInNewChat, quoteSelectionEnabled = false, initialPrompt, onInitialPromptConsumed, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio }: Props) {
+export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, newSessionCwd, newSessionDraftKey, onAgentEnd, onAttentionNeeded, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile, onOpenSession, onAskInNewChat, quoteSelectionEnabled = false, initialPrompt, onInitialPromptConsumed, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, onGeoScene, onToolResult }: Props) {
   const { t } = useI18n();
   const isMobile = useIsMobile();
   const completionNotificationsEnabled = session?.relation?.kind !== "subagent";
@@ -293,7 +296,15 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     session, sessionRunning, newSessionCwd, newSessionDraftKey, onAgentEnd: wrappedOnAgentEnd, onAttentionNeeded, onSessionCreated, onSessionForked,
     modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsPanelOpen,
     deferInitialScroll: Boolean(pendingScrollRestore),
+    onToolResult,
   });
+  useEffect(() => {
+    if (!session?.id || !onGeoScene) return;
+    for (const message of messages) {
+      const scene = geoSceneFromMessage(message);
+      if (scene) onGeoScene(session.id, scene);
+    }
+  }, [messages, onGeoScene, session?.id]);
   const sessionBusy = agentRunning || bashRunning;
   const [quotedSelection, setQuotedSelection] = useState<{
     text: string;
@@ -1338,6 +1349,13 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
               <span className="traffic-kicker">从交通问题，到仿真决策</span>
               <h1>今天，想改善哪一段交通？</h1>
               <p>描述你的场景与目标，由交通智能体协助运行仿真、识别拥堵与评估方案。</p>
+              <div className="traffic-flow-strip" aria-label="交通智能体工作流">
+                <span className="traffic-flow-step"><b>01</b>描述问题</span>
+                <i aria-hidden="true">→</i>
+                <span className="traffic-flow-step"><b>02</b>MCP 分析</span>
+                <i aria-hidden="true">→</i>
+                <span className="traffic-flow-step"><b>03</b>仿真与 GIS 验证</span>
+              </div>
               <svg className="traffic-network" viewBox="0 0 500 80" fill="none" aria-label="交通路网示意图，非实时仿真">
                 <path d="M0 20H500M0 60H500M90 0V80M250 0V80M410 0V80" stroke="currentColor" strokeWidth="9" opacity=".12" />
                 <path d="M0 20H250V60H500M90 0V80M410 0V80" stroke="currentColor" strokeWidth="2" strokeDasharray="5 6" />
@@ -1354,6 +1372,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                 <span className="traffic-task-number">0{index + 1}</span><strong>{title}</strong><span>{subtitle}</span>
               </button>)}
             </div>
+
           </div>
         )}
         {chatInputElement}

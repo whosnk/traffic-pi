@@ -1,26 +1,94 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import * as z from "zod/v4";
 
-const server = new McpServer({ name: "traffic-demo", version: "1.0.0" });
-for (const [name, action, description] of [
-  ["start_rush_hour_demo", "start", "重新加载 Montlake 工作日场景并重置到 08:00，自动播放早高峰。仅在用户要求重置早高峰演示时使用；控制当前实例请使用其他工具。"],
-  ["pause_current_simulation", "pause", "暂停当前 Sandbox，不刷新页面、不重置时间。速度归一到 1 倍。"],
-  ["resume_current_simulation", "resume", "从当前时间继续播放 Sandbox，速度设为 1 倍，不刷新页面、不重置进度。"],
-  ["speed_up_current_simulation", "faster", "当前 Sandbox 加速一档（1、5、30、3600 倍，最大档不变），暂停的 1 倍状态会先恢复播放。不会跳到早高峰或重载场景。"],
-]) server.registerTool(name, {
-  description: `${description} 需保持一个前台工作台，关闭沙盒弹窗。通过界面快捷键控制；返回发送确认，不读取内部时间、车辆数或播放状态。`,
-  inputSchema: {},
-}, async () => {
+const server = new McpServer({ name: "traffic-demo", version: "2.0.0" });
+const roadIds = z.array(z.number().int().nonnegative()).max(100).optional();
+const intersectionIds = z.array(z.number().int().nonnegative()).max(100).optional();
+
+async function dispatch(action, params = {}) {
+  const actionId = crypto.randomUUID();
   try {
     const response = await fetch("http://127.0.0.1:30141/api/simulation-demo", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }), signal: AbortSignal.timeout(15000),
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ actionId, action, params }),
+      signal: AbortSignal.timeout(65000),
     });
-    if (!response.headers.get("content-type")?.includes("application/json")) throw new Error("无法访问演示接口，请检查 Traffic Pi 是否启动及是否启用了访问密码。");
+    if (!response.headers.get("content-type")?.includes("application/json")) throw new Error("无法访问 Traffic Pi，请确认本机服务已启动且未启用访问密码。");
     const result = await response.json();
-    return { isError: !response.ok, content: [{ type: "text", text: JSON.stringify(result) }] };
+    return { isError: !response.ok || result.status === "failed", content: [{ type: "text", text: JSON.stringify(result, null, 2) }], structuredContent: result };
   } catch (error) {
-    return { isError: true, content: [{ type: "text", text: `启动失败：${error.message}` }] };
+    const result = { actionId, status: "failed", simulationTime: null, result: null, error: error instanceof Error ? error.message : String(error) };
+    return { isError: true, content: [{ type: "text", text: JSON.stringify(result, null, 2) }], structuredContent: result };
   }
+}
+
+function tool(name, description, inputSchema, action = name) {
+  server.registerTool(name, { description, inputSchema }, async (params) => dispatch(action, params));
+}
+
+function validateGeoScene(scene) {
+  if (!scene || typeof scene !== "object" || !Number.isInteger(scene.revision) || scene.revision < 0 || !Array.isArray(scene.sources) || !Array.isArray(scene.layers)) return "场景必须包含 revision、sources 和 layers。";
+  let featureCount = 0;
+  const sourceIds = new Set();
+  const featureIds = new Set();
+  for (const source of scene.sources) {
+    if (!source || typeof source.id !== "string" || sourceIds.has(source.id) || !source.data || source.data.type !== "FeatureCollection" || !Array.isArray(source.data.features)) return "GeoJSON 数据源无效。";
+    sourceIds.add(source.id);
+    featureCount += source.data.features.length;
+    if (featureCount > 1000) return "单个地图场景最多包含 1000 个要素。";
+    for (const feature of source.data.features) {
+      if (!feature || feature.type !== "Feature" || (typeof feature.id !== "string" && typeof feature.id !== "number") || featureIds.has(feature.id) || (feature.geometry && !validGeometry(feature.geometry))) return "GeoJSON 要素几何类型或 ID 无效。";
+      featureIds.add(feature.id);
+    }
+  }
+  const layerIds = new Set();
+  if (scene.layers.some((layer) => !layer || typeof layer.id !== "string" || layerIds.has(layer.id) || !sourceIds.has(layer.sourceId) || !["line", "circle", "fill"].includes(layer.type))) return "地图图层引用或类型无效。";
+  for (const layer of scene.layers) layerIds.add(layer.id);
+  if (Buffer.byteLength(JSON.stringify(scene), "utf8") > 2_000_000) return "地图场景过大，请先聚合数据。";
+  return null;
+}
+
+function validGeometry(geometry) {
+  if (!geometry || typeof geometry !== "object" || !["Point", "MultiPoint", "LineString", "MultiLineString", "Polygon", "MultiPolygon"].includes(geometry.type)) return false;
+  const position = (value) => Array.isArray(value) && value.length >= 2 && value.every((item) => typeof item === "number" && Number.isFinite(item)) && value[0] >= -180 && value[0] <= 180 && value[1] >= -90 && value[1] <= 90;
+  const line = (value) => Array.isArray(value) && value.length >= 2 && value.every(position);
+  const polygon = (value) => Array.isArray(value) && value.length > 0 && value.every((ring) => Array.isArray(ring) && ring.length >= 4 && ring.every(position) && JSON.stringify(ring[0]) === JSON.stringify(ring[ring.length - 1]));
+  if (geometry.type === "Point") return position(geometry.coordinates);
+  if (geometry.type === "MultiPoint") return Array.isArray(geometry.coordinates) && geometry.coordinates.length > 0 && geometry.coordinates.every(position);
+  if (geometry.type === "LineString") return line(geometry.coordinates);
+  if (geometry.type === "MultiLineString") return Array.isArray(geometry.coordinates) && geometry.coordinates.length > 0 && geometry.coordinates.every(line);
+  if (geometry.type === "Polygon") return polygon(geometry.coordinates);
+  return Array.isArray(geometry.coordinates) && geometry.coordinates.length > 0 && geometry.coordinates.every(polygon);
+}
+
+server.registerTool("publish_geo_scene", {
+  description: "在 Traffic Pi GIS 面板发布道路或交通指标 GeoJSON 图层。Feature.id 应使用稳定的道路 ID。",
+  inputSchema: { scene: z.record(z.string(), z.unknown()) },
+}, async ({ scene }) => {
+  const error = validateGeoScene(scene);
+  if (error) return { isError: true, content: [{ type: "text", text: error }] };
+  const payload = { type: "traffic-pi-geo", scene: { ...scene, type: "traffic-pi-geo" } };
+  return { content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload };
 });
+
+tool("start_rush_hour_demo", "重置并加载重庆渝中半岛工作日场景。仅在明确要求重置时使用。", {}, "start");
+tool("pause_current_simulation", "暂停当前仿真并返回真实状态。", {}, "pause");
+tool("resume_current_simulation", "以 1 倍速度继续当前仿真并返回真实状态。", {}, "resume");
+tool("speed_up_current_simulation", "将当前仿真提高一档速度并返回真实状态。", {}, "faster");
+tool("get_simulation_state", "读取仿真时间、速度、暂停状态、场景和随机种子。", {});
+tool("get_road_metrics", "读取道路实时速度、小时流量、排队车辆数和平均累计延误；不传 roadIds 时返回最拥堵道路。", { roadIds });
+tool("get_intersection_metrics", "读取路口小时流量、当前相位、排队车辆数和最近一小时平均延误；不传 intersectionIds 时返回最拥堵信号路口。", { intersectionIds });
+tool("focus_on_road", "把仿真镜头移动到指定内部道路 ID。", { roadId: z.number().int().nonnegative() });
+tool("highlight_roads", "按预警等级在真实仿真画面高亮道路。", { roads: z.array(z.object({ roadId: z.number().int().nonnegative(), level: z.enum(["warning", "severe", "critical"]) })).min(1).max(100) });
+tool("clear_highlights", "清除 Traffic Pi 添加的道路高亮。", {});
+tool("run_until", "推进到指定仿真秒并在目标时间暂停。目标不能早于当前时间。", { simulationTimeSeconds: z.number().nonnegative().max(172800) });
+tool("run_for", "推进指定仿真秒数并在结束时暂停。", { durationSeconds: z.number().positive().max(86400) });
+tool("get_signal_plan", "读取指定信号路口的真实相位方案和当前相位。", { intersectionId: z.number().int().nonnegative() });
+tool("apply_signal_plan", "修改指定路口各相位时长；首次修改前自动保存原方案。", { intersectionId: z.number().int().nonnegative(), stageDurationsSeconds: z.array(z.number().int().min(5).max(300)).min(1).max(20), offsetSeconds: z.number().int().min(0).max(3600).optional() });
+tool("restore_signal_plan", "恢复该路口首次修改前保存的信号方案。", { intersectionId: z.number().int().nonnegative() });
+tool("capture_metrics", "运行并保存一个统计时段。方案采集必须指定 baselineCaptureId，系统会从同一基准检查点重跑。", { captureId: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/), durationSeconds: z.number().positive().max(86400), baselineCaptureId: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/).optional() });
+tool("compare_metrics", "比较两个同场景、同需求、同种子、同统计时段的指标快照。条件不一致时拒绝比较。", { baselineCaptureId: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/), treatmentCaptureId: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/) });
+
 await server.connect(new StdioServerTransport());
