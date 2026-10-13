@@ -66,6 +66,7 @@ interface Props {
   playDoneSound?: () => void;
   unlockAudio?: () => void;
   onGeoScene?: (sessionId: string, scene: GeoScene) => void;
+  onToolResult?: (sessionId: string, message: ToolResultMessage) => void;
 }
 
 function phaseLabel(phase: AgentPhase, t: (key: string, params?: Record<string, string | number>) => string): string | null {
@@ -87,33 +88,6 @@ function phaseLabel(phase: AgentPhase, t: (key: string, params?: Record<string, 
 
 const CHAT_MINIMAP_WIDTH = 36;
 const CHAT_COLUMN_PADDING = 16;
-
-const trafficSkillCards = [
-  {
-    name: "traffic-simulation",
-    title: "仿真控制",
-    description: "加载场景、推进仿真并读取状态与拥堵指标。",
-    tools: ["get_simulation_state", "run_until", "get_road_metrics"],
-    output: "仿真状态 · 道路指标",
-    prompt: "请使用 traffic-simulation skill 检查当前重庆场景，确认仿真状态后运行到目标时段，并返回道路速度、流量、排队和延误指标。",
-  },
-  {
-    name: "traffic-signal-analysis",
-    title: "信号配时分析",
-    description: "用真实路口流量、排队和相位数据诊断配时。",
-    tools: ["get_intersection_metrics", "get_signal_plan", "apply_signal_plan"],
-    output: "路口诊断 · 配时方案",
-    prompt: "请使用 traffic-signal-analysis skill 读取当前拥堵路口的流量、排队和信号方案，先给出诊断与建议，执行修改前向我确认。",
-  },
-  {
-    name: "traffic-scenario-comparison",
-    title: "方案对比评估",
-    description: "在相同场景、需求和随机种子下比较候选方案。",
-    tools: ["capture_metrics", "compare_metrics", "publish_geo_scene"],
-    output: "延误 · 速度 · 排队 · GIS",
-    prompt: "请使用 traffic-scenario-comparison skill 检查两个交通方案的可比条件，采集并比较真实指标，最后把道路差异发布到 GIS。",
-  },
-] as const;
 
 function NewSessionUpdateLink({
   label,
@@ -267,7 +241,7 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
   );
 }
 
-export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, newSessionCwd, newSessionDraftKey, onAgentEnd, onAttentionNeeded, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile, onOpenSession, onAskInNewChat, quoteSelectionEnabled = false, initialPrompt, onInitialPromptConsumed, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, onGeoScene }: Props) {
+export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, newSessionCwd, newSessionDraftKey, onAgentEnd, onAttentionNeeded, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile, onOpenSession, onAskInNewChat, quoteSelectionEnabled = false, initialPrompt, onInitialPromptConsumed, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, onGeoScene, onToolResult }: Props) {
   const { t } = useI18n();
   const isMobile = useIsMobile();
   const completionNotificationsEnabled = session?.relation?.kind !== "subagent";
@@ -322,6 +296,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     session, sessionRunning, newSessionCwd, newSessionDraftKey, onAgentEnd: wrappedOnAgentEnd, onAttentionNeeded, onSessionCreated, onSessionForked,
     modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsPanelOpen,
     deferInitialScroll: Boolean(pendingScrollRestore),
+    onToolResult,
   });
   useEffect(() => {
     if (!session?.id || !onGeoScene) return;
@@ -1397,19 +1372,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
                 <span className="traffic-task-number">0{index + 1}</span><strong>{title}</strong><span>{subtitle}</span>
               </button>)}
             </div>
-            <details className="traffic-skill-showcase">
-              <summary><span><b>SKILL ORCHESTRATION</b>交通技能联动</span><small>3 个预置 skill · 点击查看工具链</small></summary>
-              <div className="traffic-skill-grid">
-                {trafficSkillCards.map((skill, index) => <button key={skill.name} type="button" className="traffic-skill-card" onClick={() => chatInputRef?.current?.insertIfEmpty(skill.prompt)}>
-                  <div className="traffic-skill-card-head"><span>0{index + 1}</span><em>已配置</em></div>
-                  <strong>{skill.title}</strong>
-                  <code>{skill.name}</code>
-                  <p>{skill.description}</p>
-                  <div className="traffic-skill-tools">{skill.tools.map((tool) => <span key={tool}>{tool}</span>)}</div>
-                  <small>输出：{skill.output} →</small>
-                </button>)}
-              </div>
-            </details>
+
           </div>
         )}
         {chatInputElement}

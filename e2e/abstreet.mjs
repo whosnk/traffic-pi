@@ -13,7 +13,7 @@ try {
   await page.waitForTimeout(1500);
   await page.screenshot({ path: ".next/traffic-workspace-default.png" });
   assert.equal(await page.locator('iframe[title="本地交通仿真"]').count(), 0, "GIS must not start the simulation");
-  await page.getByRole("button", { name: "仿真 · 方案验证" }).click();
+  await page.getByRole("button", { name: "A/B Street · 方案验证" }).click();
   const dialog = page.getByRole("region", { name: "交通仿真工作台" });
   const frame = page.frameLocator('iframe[title="本地交通仿真"]');
   await frame.locator("canvas").waitFor({ timeout: 60000 });
@@ -22,14 +22,14 @@ try {
   assert.ok(await page.locator("iframe").evaluate((element) => element.clientWidth >= 1500));
   const chat = await page.locator(".traffic-chat-column").boundingBox();
   const simulation = await dialog.boundingBox();
-  assert.ok(chat.width >= 360 && simulation.width > 800);
+  assert.ok(chat.width >= 290 && simulation.width > 650);
   assert.ok(chat.x + chat.width <= simulation.x);
   assert.equal(await page.locator("dialog[open]").count(), 0);
   const originalFrame = page.frames().find((item) => item.url().includes("abstreet.html"));
   const mapCanvas = await page.locator(".geo-map canvas").elementHandle();
   await page.getByRole("button", { name: /GIS · 路网观察/ }).click();
   await dialog.waitFor({ state: "hidden" });
-  await page.getByRole("button", { name: "仿真 · 方案验证" }).click();
+  await page.getByRole("button", { name: "A/B Street · 方案验证" }).click();
   assert.equal(page.frames().find((item) => item.url().includes("abstreet.html")), originalFrame);
   assert.ok(await mapCanvas.evaluate(element => element.isConnected), "Switching tools must keep the map mounted");
   await page.getByRole("button", { name: "切换全屏" }).click();
@@ -51,8 +51,10 @@ try {
   assert.equal(await page.locator(".chat-input-textarea").inputValue(), "比较当前场景的交通方案");
   await page.screenshot({ path: ".next/abstreet-workspace.png" });
   await page.setViewportSize({ width: 760, height: 900 });
-  const smallChat = await page.locator(".traffic-chat-column").boundingBox();
-  assert.ok((await dialog.boundingBox()).y >= smallChat.y + smallChat.height);
+  assert.equal(await page.locator(".traffic-chat-column").isVisible(), false);
+  await page.getByRole("region", { name: "交通工作区", exact: true }).getByRole("button", { name: "对话", exact: true }).click();
+  assert.equal(await page.locator(".traffic-chat-column").isVisible(), true);
+  await page.getByRole("button", { name: "收起对话", exact: true }).click();
   await page.getByRole("button", { name: "收起交通工作区" }).click();
   await dialog.waitFor({ state: "hidden" });
   console.log("PASS: split layout, fullscreen, rapid toggle without reload, inert closed panel, reduced motion, narrow layout");

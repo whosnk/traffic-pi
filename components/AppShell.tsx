@@ -6,6 +6,10 @@ import { useGlobalKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { SessionSidebar } from "./SessionSidebar";
 import { ChatWindow } from "./ChatWindow";
 import { TrafficWorkspace, type TrafficView } from "./TrafficWorkspace";
+import { TrafficSkillsPanel } from "./TrafficSkillsPanel";
+import { TrafficResultsPanel } from "./TrafficResultsPanel";
+import { trafficResultStore, trafficResultFromMessage, useTrafficResults, type TrafficResult } from "@/lib/traffic-results";
+import type { ToolResultMessage } from "@/lib/types";
 import type { ChatScrollPosition } from "@/lib/chat-scroll-position";
 import { FileViewer } from "./FileViewer";
 import { TabBar, type Tab } from "./TabBar";
@@ -175,10 +179,30 @@ export function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [trafficWorkspaceOpen, setTrafficWorkspaceOpen] = useState(true);
   const [trafficView, setTrafficView] = useState<TrafficView>("gis");
+  const [trafficSkillsOpen, setTrafficSkillsOpen] = useState(false);
+  const closeTrafficSkills = useCallback(() => setTrafficSkillsOpen(false), []);
+  const [trafficChatOpen, setTrafficChatOpen] = useState(true);
+  const [trafficResultsOpen, setTrafficResultsOpen] = useState(true);
+  useEffect(() => {
+    const narrow = window.matchMedia("(max-width: 960px)");
+    const collapse = () => { if (narrow.matches) { setTrafficChatOpen(false); setTrafficResultsOpen(false); } };
+    collapse();
+    narrow.addEventListener("change", collapse);
+    return () => narrow.removeEventListener("change", collapse);
+  }, []);
+  const resultState = useTrafficResults(selectedSession?.id ?? null);
+  const selectedGeoResult = resultState.results.find(result => result.id === resultState.selectedGeoId);
   const [geoFocusRequest, setGeoFocusRequest] = useState({ sessionId: "", token: 0 });
   const geoScene = useGeoScene(selectedSession?.id ?? null);
   const geoSceneUnread = useGeoSceneUnread(selectedSession?.id ?? null);
   const handleGeoScene = useCallback((sessionId: string, scene: GeoScene) => geoSceneStore.set(sessionId, scene), []);
+  const handleToolResult = useCallback((sessionId: string, message: ToolResultMessage) => {
+    const result = trafficResultFromMessage(message);
+    if (!result) return;
+    if (trafficResultStore.add(sessionId, result, geoSceneStore.get(sessionId)?.revision ?? -1) && result.type === "publish_geo_scene") {
+      geoSceneStore.set(sessionId, result.data as GeoScene);
+    }
+  }, []);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const handleOpenTrafficWorkspace = useCallback(() => {
     setTrafficWorkspaceOpen(true);
@@ -189,10 +213,34 @@ export function AppShell() {
     handleOpenTrafficWorkspace();
     setTrafficView("gis");
     if (selectedSession && geoScene) {
+      trafficResultStore.latest(selectedSession.id);
+      const latest = trafficResultStore.get(selectedSession.id).results.find(result => result.type === "publish_geo_scene" && (result.data as GeoScene).revision === geoScene.revision);
+      if (latest) { trafficResultStore.select(selectedSession.id, latest.id); trafficResultStore.latest(selectedSession.id); }
       setGeoFocusRequest((previous) => ({ sessionId: selectedSession.id, token: previous.token + 1 }));
       geoSceneStore.markSeen(selectedSession.id, geoScene.revision);
     }
   }, [handleOpenTrafficWorkspace, selectedSession, geoScene]);
+  const handleTrafficMode = useCallback((mode: TrafficView | "conversation") => {
+    if (mode === "conversation") { setTrafficWorkspaceOpen(false); setRightPanelOpen(false); }
+    else { setTrafficView(mode); handleOpenTrafficWorkspace(); }
+  }, [handleOpenTrafficWorkspace]);
+  const handleSelectTrafficResult = useCallback((result: TrafficResult) => {
+    if (!selectedSession) return;
+    trafficResultStore.select(selectedSession.id, result.id);
+    if (result.type === "publish_geo_scene") {
+      handleTrafficMode("gis");
+      setGeoFocusRequest(previous => ({ sessionId: selectedSession.id, token: previous.token + 1 }));
+      geoSceneStore.markSeen(selectedSession.id, (result.data as GeoScene).revision);
+    }
+  }, [selectedSession, handleTrafficMode]);
+  const toggleTrafficChat = () => {
+    setTrafficChatOpen(current => !current);
+    if (window.matchMedia("(max-width: 960px)").matches) setTrafficResultsOpen(false);
+  };
+  const toggleTrafficResults = () => {
+    setTrafficResultsOpen(current => !current);
+    if (window.matchMedia("(max-width: 960px)").matches) setTrafficChatOpen(false);
+  };
   const [mobileToolbarMoreOpen, setMobileToolbarMoreOpen] = useState(false);
   const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
   const sidebarWidthRef = useRef(SIDEBAR_DEFAULT_WIDTH);
@@ -1174,11 +1222,10 @@ export function AppShell() {
         onSessionsChange={handleSessionsChange}
       />
       <div className="traffic-navigation" style={{ padding: "8px", flexShrink: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-        <button type="button" onClick={handleOpenTrafficWorkspace} aria-controls="traffic-workspace" aria-expanded={trafficWorkspaceOpen} style={{ height: 32, color: "var(--accent)", textAlign: "left" }}>▧ 交通工作区</button>
         {([
           ["models", translate("common.models")],
-          ["mcp", "MCP 工具"],
-          ["skills", "专属技能"],
+          ["mcp", "MCP 连接管理"],
+          ["skills", "技能管理"],
         ] as const).map(([section, label]) => {
           const disabled = section !== "models" && !projectTrustCwd;
           return (
@@ -1948,7 +1995,7 @@ export function AppShell() {
         }
       }
     `}</style>
-    <div className={trafficWorkspaceOpen ? "traffic-workspace-layout" : undefined} style={{
+    <div className={trafficWorkspaceOpen ? "traffic-workspace-layout" : undefined} data-chat-open={trafficChatOpen} data-results-open={trafficResultsOpen} style={{
       display: "flex",
       width: "100%",
       height: "var(--app-viewport-height, 100dvh)",
@@ -2001,11 +2048,22 @@ export function AppShell() {
         />
       )}
 
+      <nav className="traffic-mode-navigation" aria-label="工作模式">
+        <span className="traffic-nav-brand">TP</span>
+        <button type="button" aria-controls="session-sidebar" aria-expanded={sidebarOpen} onClick={handleSidebarToggle}>会话</button>
+        <button type="button" aria-expanded={trafficSkillsOpen} aria-controls="traffic-skills-panel" onClick={() => setTrafficSkillsOpen(current => !current)}>交通技能</button>
+        <small>工作模式</small>
+        {([["conversation", "对话", "◌"], ["gis", "GIS 分析", "▧"], ["abstreet", "A/B Street 仿真", "▷"], ["sumo", "SUMO 仿真", "◇"]] as const).map(([mode, label, icon]) => <button key={mode} type="button" aria-pressed={mode === "conversation" ? !trafficWorkspaceOpen && !rightPanelOpen : trafficWorkspaceOpen && trafficView === mode} onClick={() => handleTrafficMode(mode)}><span aria-hidden="true">{icon}</span>{label}{mode === "sumo" && <small>待接入</small>}</button>)}
+        {trafficWorkspaceOpen && <div className="traffic-mobile-panels"><button type="button" aria-expanded={trafficChatOpen} onClick={toggleTrafficChat}>对话面板</button><button type="button" aria-expanded={trafficResultsOpen} onClick={toggleTrafficResults}>结果面板</button></div>}
+        <button type="button" className="traffic-nav-settings" onClick={() => setSettingsSection(getLastSettingsSection(projectTrustCwd))}>设置</button>
+        {trafficSkillsOpen && <div id="traffic-skills-panel"><TrafficSkillsPanel onClose={closeTrafficSkills} /></div>}
+      </nav>
+
       {/* Center: chat */}
-      <div className="traffic-chat-column" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+      <div className="traffic-chat-column" inert={trafficWorkspaceOpen && !trafficChatOpen} aria-hidden={trafficWorkspaceOpen && !trafficChatOpen} style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
         <div className="traffic-chat-heading">
           <div><strong>交通智能体</strong><span>{selectedSession?.name ?? "场景分析与方案讨论"}</span></div>
-          <button type="button" onClick={handleOpenTrafficWorkspace} aria-controls="traffic-workspace" aria-expanded={trafficWorkspaceOpen}>交通工作区</button>
+          {trafficWorkspaceOpen ? <button type="button" onClick={toggleTrafficChat} aria-label="收起对话">收起</button> : <button type="button" onClick={handleOpenTrafficWorkspace} aria-controls="traffic-workspace" aria-expanded={trafficWorkspaceOpen}>交通工作区</button>}
         </div>
         {geoSceneUnread && <div className="traffic-result-notice" role="status"><span>GIS 有新结果</span><button type="button" onClick={handleViewGeoResult}>查看结果</button></div>}
         {/* Top bar with sidebar toggle */}
@@ -2457,6 +2515,7 @@ export function AppShell() {
               playDoneSound={playDoneSound}
               unlockAudio={unlockAudio}
               onGeoScene={handleGeoScene}
+              onToolResult={handleToolResult}
             />
           ) : initialCwdStatus === "validating" ? (
             <div
@@ -2512,13 +2571,23 @@ export function AppShell() {
         open={trafficWorkspaceOpen}
         view={trafficView}
         sessionId={selectedSession?.id ?? null}
-        scene={geoScene}
+        scene={selectedGeoResult ? selectedGeoResult.data as GeoScene : geoScene}
         unread={geoSceneUnread}
         focusRequest={geoFocusRequest.sessionId === selectedSession?.id ? geoFocusRequest.token : 0}
-        onViewChange={setTrafficView}
+        onViewChange={handleTrafficMode}
         onViewResult={handleViewGeoResult}
         onClose={() => setTrafficWorkspaceOpen(false)}
+        chatOpen={trafficChatOpen}
+        resultsOpen={trafficResultsOpen}
+        onToggleChat={toggleTrafficChat}
+        onToggleResults={toggleTrafficResults}
+        historical={Boolean(selectedGeoResult)}
+        onLatest={handleViewGeoResult}
+        resultCount={resultState.results.filter(result => result.unread).length}
       />
+      <div className="traffic-results-column" inert={!trafficWorkspaceOpen || !trafficResultsOpen} aria-hidden={!trafficWorkspaceOpen || !trafficResultsOpen}>
+        <TrafficResultsPanel results={resultState.results} expandedId={resultState.expandedId} onSelect={handleSelectTrafficResult} onClose={() => setTrafficResultsOpen(false)} />
+      </div>
       <div
         aria-hidden="true"
         className={`right-panel-overlay-backdrop${rightPanelOpen ? " is-open" : ""}`}
