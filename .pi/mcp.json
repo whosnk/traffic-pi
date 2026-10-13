@@ -3,7 +3,15 @@
     "name": "traffic-demo",
     "transport": "stdio",
     "command": "node",
-    "args": ["E:/The work of PHD/Code/traffic-pi/mcp/traffic-demo.mjs"],
+    "args": [
+      "E:/The work of PHD/Code/traffic-pi/mcp/traffic-demo.mjs"
+    ],
+    "enabled": true
+  },
+  {
+    "name": "simtrend",
+    "transport": "http",
+    "url": "http://127.0.0.1:8765/mcp",
     "enabled": true
   }
 ]
