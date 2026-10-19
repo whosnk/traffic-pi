@@ -1,0 +1,59 @@
+.simtrend-panel { height:100%; overflow:auto; padding:20px; color:var(--text); background:var(--bg); }
+.simtrend-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
+.simtrend-header small { color:var(--accent); letter-spacing:.16em; }
+.simtrend-header h2 { font-size:20px; font-weight:650; margin:4px 0; }
+.simtrend-panel button, .simtrend-result button { border:1px solid var(--border); border-radius:7px; padding:8px 12px; background:var(--bg-panel); cursor:pointer; text-align:left; font-size:13px; }
+.simtrend-panel button:hover, .simtrend-result button:hover { background:var(--bg-hover); }
+.simtrend-panel button:disabled { opacity:.5; cursor:wait; }
+.simtrend-panel button[aria-pressed=true] { border-color:var(--accent); background:var(--bg-selected); }
+.simtrend-panel label { display:grid; gap:6px; font-size:13px; margin:12px 0; }
+.simtrend-panel input, .simtrend-panel select { width:100%; min-width:0; border:1px solid var(--border); background:var(--bg-panel); color:var(--text); border-radius:6px; padding:9px 11px; }
+.simtrend-panel :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.simtrend-description { color:var(--text-muted); font-size:12px; line-height:1.7; margin:10px 0; }
+.simtrend-tabs { display:flex; flex-wrap:wrap; gap:7px; margin:14px 0; }
+.simtrend-map { width:100%; height:clamp(280px,42vh,500px); border:1px solid var(--border); border-radius:8px; }
+.simtrend-map-wrap small { display:block; font-size:11px; color:var(--text-muted); padding:6px 0; }
+.simtrend-panel .maplibregl-ctrl button { padding:0; border:0; border-radius:0; }
+.simtrend-panel h3 { font-size:15px; font-weight:600; margin:12px 0; }
+.simtrend-selection { padding:14px; border:1px solid var(--border); border-radius:8px; margin:12px 0; }
+.simtrend-selection p { font-size:12px; margin:8px 0; }
+.simtrend-lanes, .simtrend-actions, .simtrend-road-search { display:flex; flex-wrap:wrap; gap:7px; margin-top:12px; }
+.simtrend-lanes button { display:grid; gap:5px; }
+.simtrend-lanes code { font-size:11px; }
+.simtrend-lanes small { color:var(--text-muted); }
+.simtrend-query { margin:16px 0; display:flex; gap:8px; align-items:end; }
+.simtrend-query label { flex:1; margin:0; }
+.simtrend-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 14px; }
+.simtrend-form > p, .simtrend-form > small, .simtrend-form > button { grid-column:1/-1; }
+.simtrend-form p, .simtrend-form small { font-size:12px; color:var(--text-muted); margin:10px 0; }
+.simtrend-draft { grid-column:1 / -1; border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:7px; padding:12px; background:var(--bg-panel); font-size:13px; }
+.simtrend-draft ul { margin:8px 0; padding-left:20px; color:var(--text-muted); font-size:12px; }
+.simtrend-panel .simtrend-primary { background:var(--accent); color:white; text-align:center; margin-top:16px; }
+.simtrend-error { background:#fff1e6; color:#823a0c; padding:10px 12px; border-radius:6px; font-size:13px; margin:10px 0; }
+.simtrend-history { display:flex; flex-wrap:wrap; gap:6px; margin:14px 0; }
+.simtrend-history button small { display:block; color:var(--text-muted); margin-top:4px; }
+.simtrend-progress { padding-left:22px; font-size:12px; line-height:1.9; color:var(--text-muted); }
+.simtrend-result { font-size:13px; overflow-wrap:anywhere; }
+.simtrend-result > p { margin:12px 0; }
+.simtrend-result pre { white-space:pre-wrap; max-height:420px; overflow:auto; font-size:11px; padding:12px; background:var(--bg-panel); }
+.simtrend-result details { margin:12px 0; }
+.simtrend-result summary { cursor:pointer; color:var(--accent); }
+.simtrend-result table { width:100%; font-size:12px; }
+.simtrend-result th, .simtrend-result td { border-bottom:1px solid var(--border); padding:5px; }
+.simtrend-replays { display:grid; gap:10px; margin:10px 0; }
+.simtrend-replays img { display:block; width:100%; border:1px solid var(--border); border-radius:6px; }
+.simtrend-replays figcaption { font-size:12px; margin:5px 0; }
+.simtrend-downloads { display:grid; gap:8px; padding:10px 0; font-size:11px; }
+.simtrend-metrics { margin:16px 0; }
+.simtrend-context-tag { display:flex; align-items:flex-start; gap:8px; padding:9px 11px; margin-bottom:8px; border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:7px; background:var(--bg-panel); font-size:12px; line-height:1.6; overflow-wrap:anywhere; }
+.simtrend-context-tag > div { flex:1; min-width:0; }
+.simtrend-context-tag strong, .simtrend-context-tag span, .simtrend-context-tag small { display:block; }
+.simtrend-context-tag small { color:var(--text-muted); font-size:10px; }
+.simtrend-context-tag button { flex-shrink:0; padding:3px 6px; border:1px solid var(--border); border-radius:5px; font-size:11px; cursor:pointer; background:var(--bg); color:var(--text); }
+.simtrend-metrics p, .simtrend-metrics small { font-size:11px; color:var(--text-muted); }
+.simtrend-metrics td { font-variant-numeric:tabular-nums; text-align:right; }
+.simtrend-metrics th { text-align:left; font-weight:500; }
+.simtrend-bars { display:grid; gap:3px; margin:5px 0; width:100%; max-width:200px; }
+.simtrend-bars i { display:block; height:5px; background:#89939d; border-radius:2px; }
+.simtrend-bars i + i { background:var(--accent); }
+@media(max-width:700px) { .simtrend-panel { padding:12px; } .simtrend-form { grid-template-columns:1fr; } }

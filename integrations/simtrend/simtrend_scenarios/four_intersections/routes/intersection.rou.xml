@@ -1,0 +1,67 @@
+<routes>
+    <vType id="car" accel="2.6" decel="4.5" sigma="0.5" length="5" width="1.8" minGap="2.5" maxSpeed="13.89" guiShape="passenger/sedan" color="0.18,0.45,0.85"/>
+
+    <route id="n0_left" edges="n0_c00 c00_c10 c10_e0"/>
+    <route id="n0_through" edges="n0_c00 c00_c01 c01_s0"/>
+    <route id="n0_right" edges="n0_c00 c00_w0"/>
+
+    <route id="n1_left" edges="n1_c10 c10_e0"/>
+    <route id="n1_through" edges="n1_c10 c10_c11 c11_s1"/>
+    <route id="n1_right" edges="n1_c10 c10_c00 c00_w0"/>
+
+    <route id="s0_left" edges="s0_c01 c01_w1"/>
+    <route id="s0_through" edges="s0_c01 c01_c00 c00_n0"/>
+    <route id="s0_right" edges="s0_c01 c01_c11 c11_e1"/>
+
+    <route id="s1_left" edges="s1_c11 c11_c01 c01_w1"/>
+    <route id="s1_through" edges="s1_c11 c11_c10 c10_n1"/>
+    <route id="s1_right" edges="s1_c11 c11_e1"/>
+
+    <route id="w0_left" edges="w0_c00 c00_n0"/>
+    <route id="w0_through" edges="w0_c00 c00_c10 c10_e0"/>
+    <route id="w0_right" edges="w0_c00 c00_c01 c01_s0"/>
+
+    <route id="w1_left" edges="w1_c01 c01_c00 c00_n0"/>
+    <route id="w1_through" edges="w1_c01 c01_c11 c11_e1"/>
+    <route id="w1_right" edges="w1_c01 c01_s0"/>
+
+    <route id="e0_left" edges="e0_c10 c10_c11 c11_s1"/>
+    <route id="e0_through" edges="e0_c10 c10_c00 c00_w0"/>
+    <route id="e0_right" edges="e0_c10 c10_n1"/>
+
+    <route id="e1_left" edges="e1_c11 c11_s1"/>
+    <route id="e1_through" edges="e1_c11 c11_c01 c01_w1"/>
+    <route id="e1_right" edges="e1_c11 c11_c10 c10_n1"/>
+
+    <flow id="flow_n0_left" type="car" route="n0_left" begin="0" end="3600" vehsPerHour="180" departLane="best" departSpeed="max"/>
+    <flow id="flow_n0_through" type="car" route="n0_through" begin="0" end="3600" vehsPerHour="420" departLane="best" departSpeed="max"/>
+    <flow id="flow_n0_right" type="car" route="n0_right" begin="0" end="3600" vehsPerHour="120" departLane="best" departSpeed="max"/>
+
+    <flow id="flow_n1_left" type="car" route="n1_left" begin="0" end="3600" vehsPerHour="180" departLane="best" departSpeed="max"/>
+    <flow id="flow_n1_through" type="car" route="n1_through" begin="0" end="3600" vehsPerHour="420" departLane="best" departSpeed="max"/>
+    <flow id="flow_n1_right" type="car" route="n1_right" begin="0" end="3600" vehsPerHour="120" departLane="best" departSpeed="max"/>
+
+    <flow id="flow_s0_left" type="car" route="s0_left" begin="0" end="3600" vehsPerHour="180" departLane="best" departSpeed="max"/>
+    <flow id="flow_s0_through" type="car" route="s0_through" begin="0" end="3600" vehsPerHour="420" departLane="best" departSpeed="max"/>
+    <flow id="flow_s0_right" type="car" route="s0_right" begin="0" end="3600" vehsPerHour="120" departLane="best" departSpeed="max"/>
+
+    <flow id="flow_s1_left" type="car" route="s1_left" begin="0" end="3600" vehsPerHour="180" departLane="best" departSpeed="max"/>
+    <flow id="flow_s1_through" type="car" route="s1_through" begin="0" end="3600" vehsPerHour="420" departLane="best" departSpeed="max"/>
+    <flow id="flow_s1_right" type="car" route="s1_right" begin="0" end="3600" vehsPerHour="120" departLane="best" departSpeed="max"/>
+
+    <flow id="flow_w0_left" type="car" route="w0_left" begin="0" end="3600" vehsPerHour="220" departLane="best" departSpeed="max"/>
+    <flow id="flow_w0_through" type="car" route="w0_through" begin="0" end="3600" vehsPerHour="520" departLane="best" departSpeed="max"/>
+    <flow id="flow_w0_right" type="car" route="w0_right" begin="0" end="3600" vehsPerHour="160" departLane="best" departSpeed="max"/>
+
+    <flow id="flow_w1_left" type="car" route="w1_left" begin="0" end="3600" vehsPerHour="220" departLane="best" departSpeed="max"/>
+    <flow id="flow_w1_through" type="car" route="w1_through" begin="0" end="3600" vehsPerHour="520" departLane="best" departSpeed="max"/>
+    <flow id="flow_w1_right" type="car" route="w1_right" begin="0" end="3600" vehsPerHour="160" departLane="best" departSpeed="max"/>
+
+    <flow id="flow_e0_left" type="car" route="e0_left" begin="0" end="3600" vehsPerHour="220" departLane="best" departSpeed="max"/>
+    <flow id="flow_e0_through" type="car" route="e0_through" begin="0" end="3600" vehsPerHour="520" departLane="best" departSpeed="max"/>
+    <flow id="flow_e0_right" type="car" route="e0_right" begin="0" end="3600" vehsPerHour="160" departLane="best" departSpeed="max"/>
+
+    <flow id="flow_e1_left" type="car" route="e1_left" begin="0" end="3600" vehsPerHour="220" departLane="best" departSpeed="max"/>
+    <flow id="flow_e1_through" type="car" route="e1_through" begin="0" end="3600" vehsPerHour="520" departLane="best" departSpeed="max"/>
+    <flow id="flow_e1_right" type="car" route="e1_right" begin="0" end="3600" vehsPerHour="160" departLane="best" departSpeed="max"/>
+</routes>

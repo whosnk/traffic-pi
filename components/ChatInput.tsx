@@ -38,6 +38,7 @@ export interface AttachedImage {
 }
 
 interface Props {
+  contextHeader?: React.ReactNode;
   onSend: (message: string, images?: AttachedImage[]) => void;
   onAbort: () => void;
   onSteer?: (message: string, images?: AttachedImage[]) => void;
@@ -482,6 +483,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   draftKey,
   cwd,
   compact = false,
+  contextHeader,
 }: Props, ref) {
   const { t } = useI18n();
   const { fontSize } = useChatAppearance();
@@ -1982,6 +1984,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               </div>
             );
           })()}
+          {contextHeader}
           <div
             style={{
               minWidth: 0,

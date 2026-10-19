@@ -10,6 +10,8 @@ import { extractTurnWrittenFiles, type WrittenFile } from "@/lib/turn-written-fi
 import { buildQuotedSelection } from "@/lib/quoted-selection";
 import { MessageView } from "./MessageView";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
+import { SimtrendContextTag } from "./SimtrendContextTag";
+import { simtrendContextStore, withSimtrendContext } from "@/lib/simtrend-context";
 import { ChatMinimap, useMessageRefs } from "./ChatMinimap";
 import { ExtensionStatusBar } from "./ExtensionStatusBar";
 import { AnsiText } from "./AnsiText";
@@ -866,14 +868,19 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     ? (modelThinkingLevelMaps[`${displayModelValue.provider}:${displayModelValue.modelId}`] ?? null)
     : null;
 
+  const spatialContextKey = session?.id ?? newSessionDraftKey ?? "simtrend-workspace";
+  function contextualize(message: string) {
+    return withSimtrendContext(message, simtrendContextStore.get(spatialContextKey));
+  }
   const chatInputElement = (
     <ChatInput
       ref={chatInputRef}
-      onSend={handleSend}
+      contextHeader={<SimtrendContextTag contextKey={spatialContextKey} />}
+      onSend={(message, images) => handleSend(contextualize(message), images)}
       onAbort={handleAbort}
-      onSteer={agentRunning ? handleSteer : undefined}
-      onFollowUp={agentRunning ? handleFollowUp : undefined}
-      onPromptWithStreamingBehavior={agentRunning ? handlePromptWithStreamingBehavior : undefined}
+      onSteer={agentRunning ? (message, images) => handleSteer(contextualize(message), images) : undefined}
+      onFollowUp={agentRunning ? (message, images) => handleFollowUp(contextualize(message), images) : undefined}
+      onPromptWithStreamingBehavior={agentRunning ? (message, behavior, images) => handlePromptWithStreamingBehavior(contextualize(message), behavior, images) : undefined}
       isStreaming={sessionBusy}
       model={displayModelValue}
       isAutoModelSelection={isAutoModelSelection}

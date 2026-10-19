@@ -1,0 +1,129 @@
+{
+  "id": "nanjing_south_ride_hailing",
+  "name": "南京南站网约车停车管理",
+  "description": "南京南站周边约 4 km × 4 km 扩展区真实路网场景，包含背景车流和集中到站区的网约车专题车流，用于研究上客区排队、停车管理以及拥堵外溢。",
+  "default_prompt": "南京南站网约车上客区车辆排队严重，请评估停车管理与信号优化方案，仿真600秒",
+  "intersections": [
+    {"id": "station_core", "name": "南京南站核心区"},
+    {"id": "north_plaza", "name": "北广场周边"},
+    {"id": "south_plaza", "name": "南广场周边"}
+  ],
+  "location_examples": [
+    "南京南站北广场网约车上客区",
+    "南京南站南广场落客通道",
+    "南京南站周边道路网约车排队",
+    "网约车停车区入口拥堵"
+  ],
+  "supported_capabilities": [
+    "真实 OSM 路网",
+    "网约车停车管理场景",
+    "网约车到站/离站专题车流",
+    "基础车流仿真",
+    "仿真动画播放",
+    "可点击道路与车道定位",
+    "网约车上客区空间选择",
+    "上客区容量控制",
+    "网约车停靠等待仿真",
+    "对话式需求强度调整"
+  ],
+  "demand_profiles": {
+    "light": {
+      "label": "轻流量",
+      "multiplier": 0.7,
+      "vehicle_multipliers": {
+        "ride_hailing_in": 0.6,
+        "ride_hailing_out": 0.6,
+        "background": 0.8
+      },
+      "description": "降低到站/离站网约车需求，并适度降低背景交通。"
+    },
+    "standard": {
+      "label": "标准流量",
+      "multiplier": 1.0,
+      "vehicle_multipliers": {
+        "ride_hailing_in": 1.0,
+        "ride_hailing_out": 1.0,
+        "background": 1.0
+      },
+      "description": "使用南京南站默认网约车与背景交通需求。"
+    },
+    "heavy": {
+      "label": "高流量",
+      "multiplier": 1.2,
+      "vehicle_multipliers": {
+        "ride_hailing_in": 1.35,
+        "ride_hailing_out": 1.25,
+        "background": 1.1
+      },
+      "description": "提高网约车到站需求，并小幅提高背景交通。"
+    },
+    "peak": {
+      "label": "峰值流量",
+      "multiplier": 1.45,
+      "vehicle_multipliers": {
+        "ride_hailing_in": 1.7,
+        "ride_hailing_out": 1.45,
+        "background": 1.2
+      },
+      "description": "模拟枢纽高峰期网约车集中到达。"
+    }
+  },
+  "map": {
+    "enabled": true,
+    "geo_edge_file": "raw/plain.edg.xml",
+    "net_file": "network/intersection.net.xml",
+    "display_filter": {
+      "enabled": true,
+      "hide_dead_end_edges": false,
+      "hide_leaf_edges": false,
+      "min_length_m": 25,
+      "allowed_road_type_prefixes": [
+        "highway.motorway",
+        "highway.trunk",
+        "highway.primary",
+        "highway.secondary",
+        "highway.tertiary",
+        "highway.residential",
+        "highway.unclassified",
+        "highway.living_street"
+      ]
+    },
+    "center": [31.9688, 118.7985],
+    "zoom": 14,
+    "pickup_zones": [
+      {
+        "id": "north_plaza_pickup",
+        "name": "南京南站北广场网约车上客区",
+        "description": "北广场候选上客管理区，绑定站区北侧集散道路。",
+        "latitude": 31.9712,
+        "longitude": 118.7979,
+        "edge_id": "189391594#0",
+        "lane_id": "189391594#0_0",
+        "capacity": 12,
+        "boarding_duration_s": 60,
+        "start_pos": 20,
+        "end_pos": 160
+      },
+      {
+        "id": "south_plaza_pickup",
+        "name": "南京南站南广场网约车上客区",
+        "description": "南广场候选上客管理区，绑定站区南侧集散道路。",
+        "latitude": 31.9672,
+        "longitude": 118.7983,
+        "edge_id": "760767137#1",
+        "lane_id": "760767137#1_0",
+        "capacity": 10,
+        "boarding_duration_s": 60,
+        "start_pos": 20,
+        "end_pos": 150
+      }
+    ]
+  },
+  "bbox": {
+    "west": 118.7773,
+    "south": 31.9508,
+    "east": 118.8197,
+    "north": 31.9868
+  },
+  "area_recommendation": "当前采用约 4 km × 4 km 扩展区，适合研究站区网约车排队向周边主干路外溢；代价是路网更大，动画加载和仿真耗时会比核心区更长。"
+}

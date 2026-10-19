@@ -46,7 +46,9 @@ export function readTrafficServers(cwd: string): TrafficServer[] {
 export async function connectTrafficServer(server: TrafficServer, cwd: string) {
   const client = new Client({ name: "traffic-pi", version: "1.0.0" });
   const transport = server.transport === "stdio"
-    ? new StdioClientTransport({ command: server.command!, args: server.args, cwd, stderr: "ignore" })
+    ? new StdioClientTransport({ command: server.command!, args: server.args, cwd, stderr: "ignore",
+      env: Object.fromEntries(["SIMTREND_PYTHON", "SUMO_HOME", "PYTHONUTF8", "PYTHONIOENCODING"].flatMap(key => process.env[key] ? [[key, process.env[key]!]] : [])),
+    })
     : new StreamableHTTPClientTransport(new URL(server.url!));
   const timer = setTimeout(() => { void client.close(); void transport.close(); }, 15000);
   try {

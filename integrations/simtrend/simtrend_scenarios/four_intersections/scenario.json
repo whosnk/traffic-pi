@@ -1,0 +1,60 @@
+{
+  "id": "four_intersections",
+  "name": "四交叉口路网",
+  "description": "2x2 四交叉口场景，每个交叉口四个方向均包含左转、直行、右转车道，适合演示事故注入、封道处理与信号优化。",
+  "default_prompt": "东北路口东进口直行车道发生追尾事故，持续10分钟，封闭1条车道，请进行信号优化仿真",
+  "intersections": [
+    {"id": "c00", "name": "西北路口"},
+    {"id": "c10", "name": "东北路口"},
+    {"id": "c01", "name": "西南路口"},
+    {"id": "c11", "name": "东南路口"}
+  ],
+  "location_examples": [
+    "东北路口东进口",
+    "西南路口北进口",
+    "东北路口东进口直行车道",
+    "东北路口东进口右转车道"
+  ],
+  "supported_capabilities": [
+    "事故注入",
+    "封道可行性处理",
+    "对话式需求强度调整",
+    "信号优化",
+    "优化前后指标对比",
+    "仿真动画播放"
+  ],
+  "demand_profiles": {
+    "light": {
+      "label": "轻流量",
+      "multiplier": 0.61,
+      "description": "约为标准需求的 61%，用于低负荷或轻流量事故响应对比。"
+    },
+    "standard": {
+      "label": "标准流量",
+      "multiplier": 1.0,
+      "description": "四交叉口默认交通需求。"
+    },
+    "heavy": {
+      "label": "高流量",
+      "multiplier": 1.3,
+      "description": "模拟交通负荷较高的拥堵风险场景。"
+    },
+    "peak": {
+      "label": "峰值流量",
+      "multiplier": 1.6,
+      "description": "模拟早晚高峰或极端拥堵压力测试。"
+    }
+  },
+  "map": {
+    "enabled": true,
+    "coordinate_system": "sumo_xy",
+    "node_file": "network/intersection.nod.xml",
+    "edge_file": "network/intersection.edg.xml",
+    "net_file": "network/intersection.net.xml",
+    "center": [31.0018, 118.0018],
+    "zoom": 16,
+    "origin_latitude": 31.0,
+    "origin_longitude": 118.0,
+    "meters_per_degree": 111320
+  }
+}

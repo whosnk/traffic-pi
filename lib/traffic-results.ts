@@ -3,6 +3,8 @@ import { geoSceneFromMessage, type GeoScene } from "./geo-types";
 import type { ToolResultMessage } from "./types";
 
 const titles = {
+  simtrend_draft: "事件任务草案",
+  simtrend: "SimTrend 仿真结果",
   publish_geo_scene: "GIS 分析图层",
   get_road_metrics: "道路指标",
   get_intersection_metrics: "路口指标",
@@ -32,6 +34,8 @@ function payload(value: unknown, depth = 0): Record<string, unknown> | null {
   }
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
+  if (input.type === "simtrend-result" || input.type === "simtrend-task-draft") return input;
+  if (input.result && typeof input.result === "object" && (input.result as Record<string, unknown>).type === "simtrend-result") return input.result as Record<string, unknown>;
   if (input.isError === true || input.status === "failed") return null;
   if (input.type === "traffic-pi-geo" || input.status === "completed") return input;
   for (const key of ["structuredContent", "content", "text", "details"]) {
@@ -45,6 +49,15 @@ export function trafficResultFromMessage(message: ToolResultMessage): TrafficRes
   if (message.isError || !message.toolCallId) return null;
   const value = payload(message.details) ?? payload(message.content);
   if (!value) return null;
+  if (value.type === "simtrend-task-draft" && value.ok === true && typeof value.id === "string" && typeof value.scenario_id === "string"
+    && typeof value.base_revision === "number" && value.form && value.selection && Array.isArray(value.lane_ids)
+    && (message.toolName?.startsWith("mcp_") || message.toolName?.includes("simtrend"))) {
+    return { id: message.toolCallId, type: "simtrend_draft", title: titles.simtrend_draft, receivedAt: Date.now(), toolName: message.toolName ?? "simtrend", data: structuredClone(value), unread: true };
+  }
+  if (value.type === "simtrend-result" && (message.toolName?.startsWith("mcp_") || message.toolName?.includes("simtrend"))) {
+    return { id: message.toolCallId, type: "simtrend", title: typeof value.message === "string" ? value.message.split("\n")[0].slice(0, 60) || titles.simtrend : titles.simtrend,
+      receivedAt: Date.now(), toolName: message.toolName ?? "simtrend", data: structuredClone(value), unread: true };
+  }
   const scene = geoSceneFromMessage({ ...message, content: [{ type: "text", text: JSON.stringify(value) }] });
   const tool = Object.keys(titles).find(name => message.toolName === name
     || (message.toolName?.startsWith("mcp_") && message.toolName.endsWith(`_${name}_${message.toolName.split("_").at(-1)}`)

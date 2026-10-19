@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2026-07-24T18:28:27.571376+08:00 by Eclipse SUMO netconvert 1.26.0
+-->
+
+<netconvertConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netconvertConfiguration.xsd">
+
+    <input>
+        <node-files value="simtrend_scenarios\nanjing_south_ride_hailing\raw\plain.nod.xml"/>
+        <edge-files value="simtrend_scenarios\nanjing_south_ride_hailing\raw\plain.edg.xml"/>
+        <connection-files value="simtrend_scenarios\nanjing_south_ride_hailing\raw\plain.con.xml"/>
+        <tllogic-files value="simtrend_scenarios\nanjing_south_ride_hailing\raw\plain.tll.xml"/>
+        <type-files value="simtrend_scenarios\nanjing_south_ride_hailing\raw\plain.typ.xml"/>
+        <osm-files value="simtrend_scenarios\nanjing_south_ride_hailing\raw\nanjing_south.osm.xml"/>
+    </input>
+
+    <output>
+        <output-file value="simtrend_scenarios\nanjing_south_ride_hailing\network\intersection.net.xml"/>
+    </output>
+
+    <projection>
+        <proj.utm value="true"/>
+        <proj.plain-geo value="true"/>
+    </projection>
+
+    <tls_building>
+        <tls.guess value="true"/>
+        <tls.join value="true"/>
+    </tls_building>
+
+    <edge_removal>
+        <keep-edges.components value="1"/>
+        <remove-edges.by-type value="highway.footway,highway.pedestrian,highway.cycleway,highway.path,highway.steps"/>
+        <remove-edges.isolated value="true"/>
+    </edge_removal>
+
+    <junctions>
+        <no-turnarounds.tls value="true"/>
+        <junctions.join value="true"/>
+        <junctions.join-dist value="15"/>
+    </junctions>
+
+    <formats>
+        <osm.lane-access value="true"/>
+        <osm.turn-lanes value="true"/>
+    </formats>
+
+</netconvertConfiguration>

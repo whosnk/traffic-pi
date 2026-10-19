@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useGlobalKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { SessionSidebar } from "./SessionSidebar";
 import { ChatWindow } from "./ChatWindow";
+import { simtrendContextStore } from "@/lib/simtrend-context";
+import type { IncidentDraftResult } from "@/lib/simtrend-draft";
 import { TrafficWorkspace, type TrafficView } from "./TrafficWorkspace";
 import { TrafficSkillsPanel } from "./TrafficSkillsPanel";
 import { TrafficResultsPanel } from "./TrafficResultsPanel";
@@ -199,10 +201,16 @@ export function AppShell() {
   const handleToolResult = useCallback((sessionId: string, message: ToolResultMessage) => {
     const result = trafficResultFromMessage(message);
     if (!result) return;
-    if (trafficResultStore.add(sessionId, result, geoSceneStore.get(sessionId)?.revision ?? -1) && result.type === "publish_geo_scene") {
-      geoSceneStore.set(sessionId, result.data as GeoScene);
+    if (trafficResultStore.add(sessionId, result, geoSceneStore.get(sessionId)?.revision ?? -1)) {
+      if (result.type === "publish_geo_scene") geoSceneStore.set(sessionId, result.data as GeoScene);
+      if (result.type === "simtrend_draft") {
+        const applied = simtrendContextStore.applyDraft(sessionId, result.data as IncidentDraftResult);
+        if (applied && selectedSession?.id === sessionId) {
+          setTrafficView("sumo"); setTrafficWorkspaceOpen(true);
+        }
+      }
     }
-  }, []);
+  }, [selectedSession?.id]);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const handleOpenTrafficWorkspace = useCallback(() => {
     setTrafficWorkspaceOpen(true);
@@ -880,6 +888,7 @@ export function AppShell() {
   const handleSessionCreated = useCallback((session: SessionInfo, sourceDraftKey: string) => {
     setRefreshKey((k) => k + 1);
     if (activeNewSessionDraftKeyRef.current !== sourceDraftKey) return;
+    simtrendContextStore.transfer(sourceDraftKey, session.id);
     invalidateWorkspaceRestore();
     activeNewSessionDraftKeyRef.current = null;
     setNewSessionCwd(null);
@@ -2053,7 +2062,7 @@ export function AppShell() {
         <button type="button" aria-controls="session-sidebar" aria-expanded={sidebarOpen} onClick={handleSidebarToggle}>会话</button>
         <button type="button" aria-expanded={trafficSkillsOpen} aria-controls="traffic-skills-panel" onClick={() => setTrafficSkillsOpen(current => !current)}>交通技能</button>
         <small>工作模式</small>
-        {([["conversation", "对话", "◌"], ["gis", "GIS 分析", "▧"], ["abstreet", "A/B Street 仿真", "▷"], ["sumo", "SUMO 仿真", "◇"]] as const).map(([mode, label, icon]) => <button key={mode} type="button" aria-pressed={mode === "conversation" ? !trafficWorkspaceOpen && !rightPanelOpen : trafficWorkspaceOpen && trafficView === mode} onClick={() => handleTrafficMode(mode)}><span aria-hidden="true">{icon}</span>{label}{mode === "sumo" && <small>待接入</small>}</button>)}
+        {([["conversation", "对话", "◌"], ["gis", "GIS 分析", "▧"], ["abstreet", "A/B Street 仿真", "▷"], ["sumo", "SimTrend 仿真", "◇"]] as const).map(([mode, label, icon]) => <button key={mode} type="button" aria-pressed={mode === "conversation" ? !trafficWorkspaceOpen && !rightPanelOpen : trafficWorkspaceOpen && trafficView === mode} onClick={() => handleTrafficMode(mode)}><span aria-hidden="true">{icon}</span>{label}</button>)}
         {trafficWorkspaceOpen && <div className="traffic-mobile-panels"><button type="button" aria-expanded={trafficChatOpen} onClick={toggleTrafficChat}>对话面板</button><button type="button" aria-expanded={trafficResultsOpen} onClick={toggleTrafficResults}>结果面板</button></div>}
         <button type="button" className="traffic-nav-settings" onClick={() => setSettingsSection(getLastSettingsSection(projectTrustCwd))}>设置</button>
         {trafficSkillsOpen && <div id="traffic-skills-panel"><TrafficSkillsPanel onClose={closeTrafficSkills} /></div>}
@@ -2571,6 +2580,7 @@ export function AppShell() {
         open={trafficWorkspaceOpen}
         view={trafficView}
         sessionId={selectedSession?.id ?? null}
+        contextKey={selectedSession?.id ?? newSessionDraftKey ?? "simtrend-workspace"}
         scene={selectedGeoResult ? selectedGeoResult.data as GeoScene : geoScene}
         unread={geoSceneUnread}
         focusRequest={geoFocusRequest.sessionId === selectedSession?.id ? geoFocusRequest.token : 0}

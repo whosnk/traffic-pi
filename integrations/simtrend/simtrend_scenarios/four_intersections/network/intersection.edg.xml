@@ -1,0 +1,30 @@
+<edges>
+    <edge id="n0_c00" from="n0" to="c00" numLanes="3" speed="13.89"/>
+    <edge id="c00_n0" from="c00" to="n0" numLanes="3" speed="13.89"/>
+    <edge id="n1_c10" from="n1" to="c10" numLanes="3" speed="13.89"/>
+    <edge id="c10_n1" from="c10" to="n1" numLanes="3" speed="13.89"/>
+
+    <edge id="s0_c01" from="s0" to="c01" numLanes="3" speed="13.89"/>
+    <edge id="c01_s0" from="c01" to="s0" numLanes="3" speed="13.89"/>
+    <edge id="s1_c11" from="s1" to="c11" numLanes="3" speed="13.89"/>
+    <edge id="c11_s1" from="c11" to="s1" numLanes="3" speed="13.89"/>
+
+    <edge id="w0_c00" from="w0" to="c00" numLanes="3" speed="13.89"/>
+    <edge id="c00_w0" from="c00" to="w0" numLanes="3" speed="13.89"/>
+    <edge id="w1_c01" from="w1" to="c01" numLanes="3" speed="13.89"/>
+    <edge id="c01_w1" from="c01" to="w1" numLanes="3" speed="13.89"/>
+
+    <edge id="e0_c10" from="e0" to="c10" numLanes="3" speed="13.89"/>
+    <edge id="c10_e0" from="c10" to="e0" numLanes="3" speed="13.89"/>
+    <edge id="e1_c11" from="e1" to="c11" numLanes="3" speed="13.89"/>
+    <edge id="c11_e1" from="c11" to="e1" numLanes="3" speed="13.89"/>
+
+    <edge id="c00_c10" from="c00" to="c10" numLanes="3" speed="13.89"/>
+    <edge id="c10_c00" from="c10" to="c00" numLanes="3" speed="13.89"/>
+    <edge id="c00_c01" from="c00" to="c01" numLanes="3" speed="13.89"/>
+    <edge id="c01_c00" from="c01" to="c00" numLanes="3" speed="13.89"/>
+    <edge id="c10_c11" from="c10" to="c11" numLanes="3" speed="13.89"/>
+    <edge id="c11_c10" from="c11" to="c10" numLanes="3" speed="13.89"/>
+    <edge id="c01_c11" from="c01" to="c11" numLanes="3" speed="13.89"/>
+    <edge id="c11_c01" from="c11" to="c01" numLanes="3" speed="13.89"/>
+</edges>

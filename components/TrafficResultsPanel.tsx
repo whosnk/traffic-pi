@@ -2,6 +2,9 @@
 
 import type { TrafficResult } from "@/lib/traffic-results";
 import type { GeoScene } from "@/lib/geo-types";
+import { SimtrendResult } from "./SimtrendResult";
+import type { SimtrendResult as SimtrendResultData } from "@/lib/simtrend-types";
+import type { IncidentDraftResult } from "@/lib/simtrend-draft";
 
 function ResultData({ value }: { value: unknown }) {
   if (value === null || value === undefined) return <span>未提供</span>;
@@ -20,10 +23,12 @@ export function TrafficResultsPanel({ results, expandedId, onSelect, onClose }: 
       {results.map(result => <article key={result.id} className="traffic-result-card" data-selected={expandedId === result.id}>
         <button type="button" onClick={() => onSelect(result)} aria-expanded={expandedId === result.id}>
           <strong>{result.title}</strong>{result.unread && <span className="traffic-result-badge">新结果</span>}
-          <small>{new Date(result.receivedAt).toLocaleTimeString()} · {result.type === "publish_geo_scene" ? "GIS" : "本地仿真"}</small>
+          <small>{new Date(result.receivedAt).toLocaleTimeString()} · {result.type === "publish_geo_scene" ? "GIS" : result.type === "simtrend_draft" ? "任务草案" : "本地仿真"}</small>
         </button>
         <code>来源：{result.toolName}</code>
-        {expandedId === result.id && <div className="traffic-result-detail">
+        {expandedId === result.id && result.type === "simtrend" && <SimtrendResult result={result.data as SimtrendResultData} />}
+        {expandedId === result.id && result.type === "simtrend_draft" && <div className="traffic-result-detail"><p>{(result.data as IncidentDraftResult).message}</p><p>草案生成时未运行仿真。当前参数与修改请查看中间“创建仿真任务”面板。</p></div>}
+        {expandedId === result.id && result.type !== "simtrend" && result.type !== "simtrend_draft" && <div className="traffic-result-detail">
           {result.type === "publish_geo_scene" ? <><p>revision {(result.data as GeoScene).revision} · {(result.data as GeoScene).sources.reduce((sum, source) => sum + source.data.features.length, 0)} 个要素</p><p>{(result.data as GeoScene).layers.map(layer => layer.title ?? layer.id).join("、") || "暂无图层"}</p></> : <><p>仿真时间：{result.simulationTime == null ? "未提供" : String(result.simulationTime)}</p><ResultData value={result.data} /><small>字段与单位沿用工具返回值；未返回的值显示为“未提供”。</small></>}
         </div>}
       </article>)}
