@@ -1,0 +1,36 @@
+.workflow { position: relative; z-index: 4; min-width: 0; padding: 10px 12px 8px; border: 1px solid var(--sim-border); border-radius: 9px; background: var(--sim-surface); color: var(--sim-text); box-shadow: var(--sim-shadow); backdrop-filter: blur(14px); font-size: 12px; }
+.workflow header, .workflow header > div, .message { display: flex; align-items: center; gap: 8px; }
+.workflow header > div { flex: 1; flex-wrap: wrap; gap: 4px 7px; }
+.workflow small { font-size: 10px; color: var(--sim-muted); }
+.workflow strong { font-size: 14px; font-weight: 600; }
+.status { font-size: 10px; color: var(--sim-accent); white-space: nowrap; }
+.workflow header button { font-size: 10px; border: 1px solid var(--sim-border); border-radius: 6px; padding: 4px 7px; color: var(--sim-text); background: transparent; cursor: pointer; white-space: nowrap; }
+.workflow button:disabled { opacity: .5; cursor: wait; }
+.workflow ol { display: flex; list-style: none; margin: 9px 0 7px; padding: 0 2px; overflow-x: auto; scrollbar-width: thin; }
+.workflow li { position: relative; flex: 1 0 78px; display: flex; flex-direction: column; gap: 2px; align-items: center; color: var(--sim-muted); line-height: 1.3; }
+.workflow li:not(:last-child)::after { content: ""; position: absolute; z-index: 0; top: 28px; left: calc(50% + 12px); width: calc(100% - 24px); border-top: 1px dashed var(--sim-border); }
+.workflow li[data-state="completed"]::after { border-top-style: solid; border-color: var(--sim-success); }
+.workflow li time { font: 9px var(--font-mono), monospace; opacity: .8; min-height: 13px; }
+.node { position: relative; display: grid; place-items: center; width: 20px; height: 20px; margin: 2px 0 3px; border: 1px solid var(--sim-border); border-radius: 50%; background: var(--sim-surface); font-size: 10px; }
+.workflow li b { font-size: 11px; font-weight: 500; }
+.workflow li[data-state="running"] { color: var(--sim-accent); }
+.workflow li[data-state="running"] .node { color: white; background: var(--sim-accent); border-color: var(--sim-accent); animation: pulse 1.8s ease-in-out infinite; }
+.workflow li[data-state="running"] b { font-weight: 700; }
+.workflow li[data-state="completed"] { color: var(--sim-success); }
+.workflow li[data-state="completed"] .node { border-color: var(--sim-success); background: color-mix(in srgb, var(--sim-success) 8%, var(--sim-surface)); }
+.workflow li[data-state="failed"], .workflow[data-status="failed"] .status { color: #b64c50; }
+.workflow li[data-state="cancelled"], .workflow[data-status="cancelled"] .status { color: var(--sim-muted); }
+.message { justify-content: space-between; align-items: flex-start; color: var(--sim-muted); font-size: 10px; line-height: 1.5; padding-top: 6px; border-top: 1px solid var(--sim-border); }
+.message > span { min-width: 0; }
+.message details { flex-shrink: 0; }
+.message summary { cursor: pointer; color: var(--sim-accent); }
+.details { position: absolute; right: 0; top: calc(100% + 8px); max-height: 320px; overflow: auto; width: min(420px, 100%); padding: 14px; border: 1px solid var(--sim-border); border-radius: 9px; background: var(--sim-surface); box-shadow: var(--sim-shadow); backdrop-filter: blur(14px); }
+.details p { margin: 5px 0 9px; }
+.details > div { padding: 9px 0; border-top: 1px solid var(--sim-border); display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.details code { color: var(--sim-text); overflow-wrap: anywhere; }
+.details > div > p { width: 100%; color: #b64c50; }
+.empty { padding: 16px 0; color: var(--sim-muted); line-height: 1.6; }
+.workflow :is(button,summary,ol):focus-visible { outline: 2px solid var(--sim-accent); outline-offset: 2px; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--sim-accent) 15%, transparent); } }
+@container (max-width: 500px) { .workflow { padding: 9px 10px; } .workflow header small { display: none; } .workflow ol { margin-top: 9px; } .workflow li { flex-basis: 74px; } }
+@media (prefers-reduced-motion: reduce) { .workflow * { animation: none !important; scroll-behavior: auto; } }

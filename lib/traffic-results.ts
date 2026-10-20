@@ -10,6 +10,7 @@ const titles = {
   get_intersection_metrics: "路口指标",
   capture_metrics: "指标采集",
   compare_metrics: "方案对比",
+  detect_congestion: "当前疑似拥堵道路",
 } as const;
 
 export type TrafficResult = {
@@ -65,6 +66,11 @@ export function trafficResultFromMessage(message: ToolResultMessage): TrafficRes
   const type = scene ? "publish_geo_scene" : tool as keyof typeof titles | undefined;
   if (!type || (type === "publish_geo_scene" && !scene)) return null;
   if (!scene && (value.status !== "completed" || !value.result || typeof value.result !== "object" || Array.isArray(value.result) || !Object.keys(value.result).length)) return null;
+  if (type === "detect_congestion") {
+    const data = value.result as Record<string, unknown>;
+    if (data.type !== "traffic-pi-congestion" || !Array.isArray(data.roads) || typeof data.metricsCollectedAt !== "string"
+      || data.roads.some(road => !road || !Number.isInteger(road.roadId) || !Number.isFinite(road.queueVehicles) || !Number.isFinite(road.meanVehicleSpeedKph))) return null;
+  }
   return {
     id: message.toolCallId, type, title: scene?.title ?? titles[type], receivedAt: Date.now(),
     toolName: message.toolName ?? "publish_geo_scene", data: structuredClone(scene ?? value.result) as TrafficResult["data"],

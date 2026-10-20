@@ -1,16 +1,17 @@
 type TrafficBridge = {
   ready?: boolean;
-  request(action: string, params?: Record<string, unknown>): Promise<unknown>;
+  request(action: string, params?: Record<string, unknown>, signal?: AbortSignal): Promise<unknown>;
 };
 
-export async function controlCurrentSimulation(doc: Document, action: string, params: Record<string, unknown> = {}) {
+export async function controlCurrentSimulation(doc: Document, action: string, params: Record<string, unknown> = {}, signal?: AbortSignal) {
+  signal?.throwIfAborted();
   const canvas = doc.querySelector("canvas");
   const win = doc.defaultView as (Window & typeof globalThis) | null;
   if (!canvas || !win) throw new Error("仿真画布尚未就绪，请等待沙盒加载完成。");
   const bridge = (win as typeof win & { trafficPi?: TrafficBridge }).trafficPi;
   if (bridge) {
     if (!bridge.ready) throw new Error("仿真场景仍在初始化，请等待右侧进入沙盒。");
-    return bridge.request(action, params);
+    return bridge.request(action, params, signal);
   }
   if (!["pause", "resume", "faster"].includes(action)) throw new Error("当前 A/B Street 构建未提供 Traffic Pi 控制接口。");
   // Stock sandbox has no exported control API; normalize speed before pause/resume.

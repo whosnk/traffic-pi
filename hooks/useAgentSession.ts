@@ -23,6 +23,8 @@ import { mergeSessionStats, type SessionFileStats } from "@/lib/session-stats";
 import { userMessageKey } from "@/lib/prompt-recovery";
 import { AgentEventConnection } from "@/lib/agent-event-connection";
 import { getToolExecutionProgress } from "@/lib/tool-execution-progress";
+import { isCongestionTool, congestionError } from "@/lib/congestion";
+import { congestionStore } from "@/lib/congestion-store";
 import {
   CHAT_SCROLL_REATTACH_TOLERANCE,
   CHAT_SCROLL_TAIL_TOLERANCE,
@@ -333,6 +335,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const sessionPropIdRef = useRef<string | null>(session?.id ?? null);
   const sessionRunningRef = useRef(Boolean(sessionRunning));
   const agentRunningRef = useRef(false);
+  const detectionAbortedRunRef = useRef(-1);
   const sdkAgentActiveRef = useRef(false);
   const rpcPromptPendingRef = useRef(false);
   const notifiedPromptRunIdRef = useRef(-1);
@@ -1213,6 +1216,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       case "tool_execution_start": {
         const id = event.toolCallId as string;
         const name = event.toolName as string;
+        if (isCongestionTool(name) && sessionIdRef.current && agentRunningRef.current && detectionAbortedRunRef.current !== promptRunIdRef.current) congestionStore.start(sessionIdRef.current, id, name);
         setAgentPhase((prev) => {
           const tools = prev?.kind === "running_tools" ? [...prev.tools] : [];
           if (!tools.some((t) => t.id === id)) tools.push({ id, name });
@@ -1241,6 +1245,9 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       }
       case "tool_execution_end": {
         const id = event.toolCallId as string;
+        if (isCongestionTool(event.toolName as string) && sessionIdRef.current && event.isError) {
+          congestionStore.finish(sessionIdRef.current, id, congestionError(event.result) || "检测失败，请检查交通 MCP 和项目信任状态。");
+        }
         if (sessionIdRef.current) onToolResult?.(sessionIdRef.current, {
           role: "toolResult", toolCallId: id, toolName: event.toolName as string,
           content: [], details: event.result, isError: event.isError as boolean,
@@ -1442,6 +1449,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const handleAbort = useCallback(async () => {
     const sid = sessionIdRef.current;
     if (!sid) return;
+    detectionAbortedRunRef.current = promptRunIdRef.current;
+    congestionStore.cancel(sid, "Agent 已停止，检测已中止。");
     if (bashRunningRef.current) {
       try {
         await sendAgentCommand(sid, { type: "abort_bash" });
@@ -1953,6 +1962,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       bashRecoveryIdRef.current += 1;
       cancelEventStreamGrace();
       closeEvents();
+      const sid = sessionIdRef.current;
+      queueMicrotask(() => { if (sid && !sessionHookMountedRef.current) congestionStore.cancel(sid, "已离开当前会话，检测已中止。"); });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

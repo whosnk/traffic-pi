@@ -53,6 +53,9 @@ html:not(.dark) .traffic-workspace[data-view="abstreet"] { --traffic-tool-accent
 .traffic-workspace button:hover { background: var(--bg-hover); }
 .traffic-workspace button:focus-visible, .traffic-chat-heading button:focus-visible, .traffic-result-notice button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .traffic-workspace-views { display: flex; overflow-x: auto; flex-shrink: 0; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.traffic-workspace-views[hidden] { display: none; }
+.traffic-workspace[data-view="abstreet"] { --traffic-tool-accent: var(--accent); }
+.traffic-workspace[data-view="abstreet"] .traffic-workspace-header { padding: 9px 14px; }
 .traffic-workspace-views button { display: inline-flex; flex-shrink: 0; align-items: center; gap: 7px; height: 32px; white-space: nowrap; }
 .traffic-workspace-views button[aria-pressed="true"] { color: var(--traffic-tool-accent); border-color: var(--traffic-tool-accent); background: color-mix(in srgb, var(--traffic-tool-accent) 9%, var(--bg-panel)); }
 .traffic-workspace-views .traffic-view-result { margin-left: auto; }
@@ -81,6 +84,8 @@ html:not(.dark) .traffic-workspace[data-view="abstreet"] { --traffic-tool-accent
 .traffic-skills-panel > p { color: var(--text-muted); font-size: 12px; line-height: 1.7; margin: 16px 0; }
 .traffic-skills-panel .traffic-skill-card { margin-bottom: 12px; cursor: default; padding: 0; }
 .traffic-skills-panel .traffic-skill-card > button { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; width: 100%; padding: 14px; text-align: left; border-radius: 8px; color: var(--text); }
+.traffic-skills-panel .traffic-skill-card > .traffic-skill-start { width: calc(100% - 28px); margin: 0 14px 12px; align-items: center; padding: 8px 12px; background: #e8f6fa; border: 1px solid #9acbdc; color: #087a9b; font-size: 12px; }
+.traffic-skills-panel .traffic-skill-start:disabled { opacity: .5; cursor: wait; }
 .traffic-skills-panel .traffic-skill-card strong { font-size: 14px; }
 .traffic-skill-description { display: none; padding: 0 14px 14px; font-size: 12px; line-height: 1.7; }
 .traffic-skill-card:hover .traffic-skill-description, .traffic-skill-card:focus-within .traffic-skill-description, .traffic-skill-card[data-expanded="true"] .traffic-skill-description { display: block; }

@@ -8,6 +8,9 @@ import { ChatWindow } from "./ChatWindow";
 import { simtrendContextStore } from "@/lib/simtrend-context";
 import type { IncidentDraftResult } from "@/lib/simtrend-draft";
 import { TrafficWorkspace, type TrafficView } from "./TrafficWorkspace";
+import { congestionStore, useCongestionTask } from "@/lib/congestion-store";
+import { isCongestionTool } from "@/lib/congestion";
+import type { CongestionResult } from "@/lib/congestion-executor";
 import { TrafficSkillsPanel } from "./TrafficSkillsPanel";
 import { TrafficResultsPanel } from "./TrafficResultsPanel";
 import { trafficResultStore, trafficResultFromMessage, useTrafficResults, type TrafficResult } from "@/lib/traffic-results";
@@ -186,6 +189,9 @@ export function AppShell() {
   const [trafficChatOpen, setTrafficChatOpen] = useState(true);
   const [trafficResultsOpen, setTrafficResultsOpen] = useState(true);
   useEffect(() => {
+    if (trafficWorkspaceOpen && trafficView === "abstreet") setTrafficResultsOpen(false);
+  }, [trafficWorkspaceOpen, trafficView]);
+  useEffect(() => {
     const narrow = window.matchMedia("(max-width: 960px)");
     const collapse = () => { if (narrow.matches) { setTrafficChatOpen(false); setTrafficResultsOpen(false); } };
     collapse();
@@ -199,9 +205,17 @@ export function AppShell() {
   const geoSceneUnread = useGeoSceneUnread(selectedSession?.id ?? null);
   const handleGeoScene = useCallback((sessionId: string, scene: GeoScene) => geoSceneStore.set(sessionId, scene), []);
   const handleToolResult = useCallback((sessionId: string, message: ToolResultMessage) => {
+    if (isCongestionTool(message.toolName ?? "")) {
+      const task = congestionStore.get(sessionId);
+      if (!task || task.id !== message.toolCallId || task.status === "failed" || task.status === "cancelled") return;
+    }
     const result = trafficResultFromMessage(message);
     if (!result) return;
     if (trafficResultStore.add(sessionId, result, geoSceneStore.get(sessionId)?.revision ?? -1)) {
+      if (result.type === "detect_congestion") {
+        congestionStore.result(sessionId, result.id, result.data as CongestionResult);
+        congestionStore.finish(sessionId, result.id);
+      }
       if (result.type === "publish_geo_scene") geoSceneStore.set(sessionId, result.data as GeoScene);
       if (result.type === "simtrend_draft") {
         const applied = simtrendContextStore.applyDraft(sessionId, result.data as IncidentDraftResult);
@@ -217,6 +231,15 @@ export function AppShell() {
     setSidebarOpen(false);
     setRightPanelOpen(false);
   }, []);
+  const detection = useCongestionTask(selectedSession?.id ?? null);
+  const openedDetection = useRef("");
+  useEffect(() => {
+    if (detection?.status === "running" && openedDetection.current !== detection.id) {
+      openedDetection.current = detection.id;
+      handleOpenTrafficWorkspace();
+      setTrafficView("abstreet");
+    }
+  }, [detection, handleOpenTrafficWorkspace]);
   const handleViewGeoResult = useCallback(() => {
     handleOpenTrafficWorkspace();
     setTrafficView("gis");
@@ -241,6 +264,10 @@ export function AppShell() {
       geoSceneStore.markSeen(selectedSession.id, (result.data as GeoScene).revision);
     }
   }, [selectedSession, handleTrafficMode]);
+  const handleFocusCongestionRoad = useCallback((roadId: number, result: CongestionResult) => {
+    handleTrafficMode("abstreet");
+    window.dispatchEvent(new CustomEvent("traffic-focus-road", { detail: { sessionId: selectedSession?.id, roadId, result } }));
+  }, [handleTrafficMode, selectedSession?.id]);
   const toggleTrafficChat = () => {
     setTrafficChatOpen(current => !current);
     if (window.matchMedia("(max-width: 960px)").matches) setTrafficResultsOpen(false);
@@ -2065,7 +2092,7 @@ export function AppShell() {
         {([["conversation", "对话", "◌"], ["gis", "GIS 分析", "▧"], ["abstreet", "A/B Street 仿真", "▷"], ["sumo", "SimTrend 仿真", "◇"]] as const).map(([mode, label, icon]) => <button key={mode} type="button" aria-pressed={mode === "conversation" ? !trafficWorkspaceOpen && !rightPanelOpen : trafficWorkspaceOpen && trafficView === mode} onClick={() => handleTrafficMode(mode)}><span aria-hidden="true">{icon}</span>{label}</button>)}
         {trafficWorkspaceOpen && <div className="traffic-mobile-panels"><button type="button" aria-expanded={trafficChatOpen} onClick={toggleTrafficChat}>对话面板</button><button type="button" aria-expanded={trafficResultsOpen} onClick={toggleTrafficResults}>结果面板</button></div>}
         <button type="button" className="traffic-nav-settings" onClick={() => setSettingsSection(getLastSettingsSection(projectTrustCwd))}>设置</button>
-        {trafficSkillsOpen && <div id="traffic-skills-panel"><TrafficSkillsPanel onClose={closeTrafficSkills} /></div>}
+        {trafficSkillsOpen && <div id="traffic-skills-panel"><TrafficSkillsPanel sessionId={selectedSession?.id ?? null} onClose={closeTrafficSkills} /></div>}
       </nav>
 
       {/* Center: chat */}
@@ -2596,7 +2623,7 @@ export function AppShell() {
         resultCount={resultState.results.filter(result => result.unread).length}
       />
       <div className="traffic-results-column" inert={!trafficWorkspaceOpen || !trafficResultsOpen} aria-hidden={!trafficWorkspaceOpen || !trafficResultsOpen}>
-        <TrafficResultsPanel results={resultState.results} expandedId={resultState.expandedId} onSelect={handleSelectTrafficResult} onClose={() => setTrafficResultsOpen(false)} />
+        <TrafficResultsPanel results={resultState.results} expandedId={resultState.expandedId} onSelect={handleSelectTrafficResult} onClose={() => setTrafficResultsOpen(false)} onFocusRoad={handleFocusCongestionRoad} />
       </div>
       <div
         aria-hidden="true"

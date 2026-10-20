@@ -308,6 +308,26 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     }
   }, [messages, onGeoScene, session?.id]);
   const sessionBusy = agentRunning || bashRunning;
+  useEffect(() => {
+    const start = (event: Event) => {
+      const detail = (event as CustomEvent<{ sessionId: string | null; handled: boolean }>).detail;
+      if (detail.sessionId !== (session?.id ?? null)) return;
+      detail.handled = true;
+      if (sessionBusy) event.preventDefault();
+      else void handleSend("/skill:traffic-congestion 检测当前拥堵点，使用 detect_congestion 读取并标注当前状态。");
+    };
+    window.addEventListener("traffic-start-congestion", start);
+    return () => window.removeEventListener("traffic-start-congestion", start);
+  }, [session?.id, sessionBusy, handleSend]);
+  useEffect(() => {
+    const retry = (event: Event) => {
+      if ((event as CustomEvent<string>).detail !== session?.id) return;
+      if (sessionBusy) event.preventDefault();
+      else void handleSend("请重新调用 detect_congestion 检测当前拥堵点，重新采集当前状态。");
+    };
+    window.addEventListener("traffic-congestion-retry", retry);
+    return () => window.removeEventListener("traffic-congestion-retry", retry);
+  }, [session?.id, sessionBusy, handleSend]);
   const [quotedSelection, setQuotedSelection] = useState<{
     text: string;
     top: number;

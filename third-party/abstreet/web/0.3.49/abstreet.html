@@ -4,8 +4,21 @@
 <script type="module">
 const commands=[];const pending=new Map();
 window.trafficPiTakeCommand=()=>{const command=commands.shift();return command?JSON.stringify(command):null};
-window.trafficPiRespond=(id,payload,ok)=>{const item=pending.get(id);if(!item)return;pending.delete(id);clearTimeout(item.timer);ok?item.resolve(JSON.parse(payload)):item.reject(new Error(payload))};
+window.trafficPiRespond=(id,payload,ok)=>{const item=pending.get(id);if(!item)return;pending.delete(id);item.cleanup();try{ok?item.resolve(JSON.parse(payload)):item.reject(new Error(payload))}catch(error){item.reject(error)}};
 window.trafficPiReady=()=>{window.trafficPi.ready=true};
-window.trafficPi={ready:false,request(action,params={}){return new Promise((resolve,reject)=>{const id=crypto.randomUUID();const timer=setTimeout(()=>{pending.delete(id);reject(new Error("A/B Street 控制接口执行超时。"))},60000);pending.set(id,{resolve,reject,timer});commands.push({id,action,params});const target=document.querySelector("canvas")||window;target.dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowLeft",code:"ArrowLeft",keyCode:37,bubbles:true}));target.dispatchEvent(new KeyboardEvent("keyup",{key:"ArrowLeft",code:"ArrowLeft",keyCode:37,bubbles:true}))})}};
+window.trafficPiViewChanged=payload=>window.dispatchEvent(new CustomEvent("traffic-pi-view-change",{detail:JSON.parse(payload)}));
+window.trafficPi={ready:false,request(action,params={},signal){return new Promise((resolve,reject)=>{
+  const id=crypto.randomUUID();
+  const cleanup=()=>{clearTimeout(timer);signal?.removeEventListener("abort",abort)};
+  const remove=()=>{pending.delete(id);const index=commands.findIndex(item=>item.id===id);if(index>=0)commands.splice(index,1);cleanup()};
+  const abort=()=>{remove();reject(signal.reason||new Error("检测已中止。"))};
+  const timer=setTimeout(()=>{remove();reject(new Error("A/B Street 控制接口执行超时。"))},60000);
+  pending.set(id,{resolve,reject,cleanup});
+  signal?.addEventListener("abort",abort,{once:true});
+  if(signal?.aborted){abort();return}
+  commands.push({id,action,params});
+  // Wake winit without a gameplay key that could pause, slow down or pan the simulation.
+  window.dispatchEvent(new Event("resize"));
+})}};
 import { ABStreet } from "./abstreet/abstreet.bundle.js";const app=new ABStreet("app");app.setAssetsBaseURL("./data");app.setAssetsAreGzipped(false);app.loadAndStart();
 </script></body></html>

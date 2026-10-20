@@ -1,0 +1,1054 @@
+diff --git a/abstio/src/io_web.rs b/abstio/src/io_web.rs
+index 3cc7fa1..f7f9c42 100644
+--- a/abstio/src/io_web.rs
++++ b/abstio/src/io_web.rs
+@@ -20,12 +20,31 @@ use crate::{path_player, Manifest};
+ static SYSTEM_DATA: include_dir::Dir = include_dir::include_dir!(
+     "../data/system",
+     "assets/",
++    "assets\\",
+     "-assets/music/",
++    "-assets\\music\\",
+     "ltn_proposals/",
++    "ltn_proposals\\",
+     "proposals/",
+-    "study_areas/"
++    "proposals\\",
++    "study_areas/",
++    "study_areas\\"
+ );
+ 
++fn system_file(path: &str) -> Option<include_dir::File<'static>> {
++    let path = path.trim_start_matches("../data/system/");
++    SYSTEM_DATA
++        .get_file(path)
++        .or_else(|| SYSTEM_DATA.get_file(path.replace('/', "\\")))
++}
++
++fn system_dir(path: &str) -> Option<include_dir::Dir<'static>> {
++    let path = path.trim_start_matches("../data/system/");
++    SYSTEM_DATA
++        .get_dir(path)
++        .or_else(|| SYSTEM_DATA.get_dir(path.replace('/', "\\")))
++}
++
+ // For file_exists and list_dir only, also check if the file is in the Manifest. The caller has to
+ // know when to load this remotely, though.
+ 
+@@ -38,9 +57,7 @@ pub fn file_exists<I: AsRef<str>>(path: I) -> bool {
+         return storage.get_item(path).unwrap().is_some();
+     }
+ 
+-    SYSTEM_DATA
+-        .get_file(path.trim_start_matches("../data/system/"))
+-        .is_some()
++    system_file(path).is_some()
+         || Manifest::load()
+             .entries
+             .contains_key(path.trim_start_matches("../"))
+@@ -52,7 +69,7 @@ pub fn list_dir(dir: String) -> Vec<String> {
+         for f in SYSTEM_DATA.files() {
+             results.insert(format!("../data/system/{}", f.path().display()));
+         }
+-    } else if let Some(dir) = SYSTEM_DATA.get_dir(dir.trim_start_matches("../data/system/")) {
++    } else if let Some(dir) = system_dir(&dir) {
+         for f in dir.files() {
+             results.insert(format!("../data/system/{}", f.path().display()));
+         }
+@@ -84,7 +101,7 @@ pub fn list_dir(dir: String) -> Vec<String> {
+ pub fn slurp_file<I: AsRef<str>>(path: I) -> Result<Vec<u8>> {
+     let path = path.as_ref();
+ 
+-    if let Some(raw) = SYSTEM_DATA.get_file(path.trim_start_matches("../data/system/")) {
++    if let Some(raw) = system_file(path) {
+         Ok(raw.contents().to_vec())
+     } else if path.starts_with(&path_player("")) {
+         let string = read_local_storage(path)?;
+@@ -103,7 +120,7 @@ pub fn slurp_file<I: AsRef<str>>(path: I) -> Result<Vec<u8>> {
+ }
+ 
+ pub fn maybe_read_binary<T: DeserializeOwned>(path: String, _: &mut Timer) -> Result<T> {
+-    if let Some(raw) = SYSTEM_DATA.get_file(path.trim_start_matches("../data/system/")) {
++    if let Some(raw) = system_file(&path) {
+         bincode::deserialize(raw.contents()).map_err(|err| err.into())
+     } else if path.starts_with(&path_player("")) {
+         let string = read_local_storage(&path)?;
+diff --git a/apps/game/src/lib.rs b/apps/game/src/lib.rs
+index eea38b3..6505edf 100644
+--- a/apps/game/src/lib.rs
++++ b/apps/game/src/lib.rs
+@@ -38,6 +38,7 @@ mod pregame;
+ mod render;
+ mod sandbox;
+ mod ungap;
++mod traffic_pi;
+ 
+ pub fn main() {
+     let settings = Settings::new("A/B Street");
+diff --git a/apps/game/src/sandbox/gameplay/play_scenario.rs b/apps/game/src/sandbox/gameplay/play_scenario.rs
+index e06b857..ae19a76 100644
+--- a/apps/game/src/sandbox/gameplay/play_scenario.rs
++++ b/apps/game/src/sandbox/gameplay/play_scenario.rs
+@@ -63,7 +63,7 @@ impl GameplayState for PlayScenario {
+         // on_destroy can wipe this out.
+         app.primary.has_modified_trips = !self.modifiers.is_empty();
+ 
+-        match self.top_right.event(ctx) {
++        match if crate::traffic_pi::custom_ui() { Outcome::Nothing } else { self.top_right.event(ctx) } {
+             Outcome::Clicked(x) => match x.as_ref() {
+                 "change map" => {
+                     let scenario = self.scenario_name.clone();
+diff --git a/apps/game/src/sandbox/mod.rs b/apps/game/src/sandbox/mod.rs
+index fa0fb78..eb168db 100644
+--- a/apps/game/src/sandbox/mod.rs
++++ b/apps/game/src/sandbox/mod.rs
+@@ -46,6 +46,7 @@ pub struct SandboxMode {
+ 
+     recalc_unzoomed_agent: Option<Time>,
+     last_cs: ColorSchemeChoice,
++    traffic_pi: crate::traffic_pi::TrafficPi,
+ }
+ 
+ pub struct SandboxControls {
+@@ -114,6 +115,9 @@ impl SandboxMode {
+ 
+ impl State<App> for SandboxMode {
+     fn event(&mut self, ctx: &mut EventCtx, app: &mut App) -> Transition {
++        if let Some(ref mut panel) = self.controls.time_panel {
++            self.traffic_pi.event(ctx, app, panel);
++        }
+         if app.opts.toggle_day_night_colors {
+             if is_daytime(app) {
+                 app.change_color_scheme(ctx, ColorSchemeChoice::DayMode)
+@@ -150,7 +154,7 @@ impl State<App> for SandboxMode {
+             return Transition::Push(DebugMode::new_state(ctx, app));
+         }
+ 
+-        if let Some(ref mut m) = self.controls.minimap {
++        if let Some(ref mut m) = self.controls.minimap.as_mut().filter(|_| !self.traffic_pi.custom_ui) {
+             if let Some(t) = m.event(ctx, app) {
+                 return t;
+             }
+@@ -192,7 +196,7 @@ impl State<App> for SandboxMode {
+             }
+         }
+ 
+-        if let Some(ref mut tp) = self.controls.tool_panel {
++        if let Some(ref mut tp) = self.controls.tool_panel.as_mut().filter(|_| !self.traffic_pi.custom_ui) {
+             if let Outcome::Clicked(x) = tp.event(ctx) {
+                 match x.as_ref() {
+                     "back" => {
+@@ -221,6 +225,7 @@ impl State<App> for SandboxMode {
+     }
+ 
+     fn draw(&self, g: &mut GfxCtx, app: &App) {
++        self.traffic_pi.draw(g, app);
+         if let Some(ref l) = app.primary.layer {
+             l.draw(g, app);
+         }
+@@ -231,21 +236,21 @@ impl State<App> for SandboxMode {
+             } else {
+                 CommonState::draw_osd(g, app);
+             }
+-            if let Some(ref tp) = self.controls.tool_panel {
++            if let Some(ref tp) = self.controls.tool_panel.as_ref().filter(|_| !self.traffic_pi.custom_ui) {
+                 tp.draw(g);
+             }
+         }
+-        if let Some(ref tp) = self.controls.time_panel {
++        if let Some(ref tp) = self.controls.time_panel.as_ref().filter(|_| !self.traffic_pi.custom_ui) {
+             tp.draw(g);
+         }
+-        if let Some(ref m) = self.controls.minimap {
++        if let Some(ref m) = self.controls.minimap.as_ref().filter(|_| !self.traffic_pi.custom_ui) {
+             m.draw(g, app);
+         }
+         if let Some(ref r) = self.controls.route_preview {
+             r.draw(g);
+         }
+ 
+-        if !app.opts.minimal_controls {
++        if !app.opts.minimal_controls && !self.traffic_pi.custom_ui {
+             self.gameplay.draw(g, app);
+         }
+     }
+@@ -651,6 +656,7 @@ impl State<App> for SandboxLoader {
+                         gameplay_mode: self.mode.clone(),
+                         recalc_unzoomed_agent: None,
+                         last_cs: app.opts.color_scheme,
++                        traffic_pi: crate::traffic_pi::TrafficPi::default(),
+                     });
+ 
+                     let mut transitions = vec![Transition::Replace(sandbox)];
+diff --git a/apps/game/src/sandbox/speed.rs b/apps/game/src/sandbox/speed.rs
+index 9131302..4a2d7cc 100644
+--- a/apps/game/src/sandbox/speed.rs
++++ b/apps/game/src/sandbox/speed.rs
+@@ -344,7 +344,7 @@ impl TimePanel {
+             self.panel.replace(ctx, "time", time);
+         }
+ 
+-        match self.panel.event(ctx) {
++        match if crate::traffic_pi::custom_ui() { Outcome::Nothing } else { self.panel.event(ctx) } {
+             Outcome::Clicked(x) => match x.as_ref() {
+                 "real-time speed" => {
+                     self.setting = SpeedSetting::Realtime;
+@@ -437,7 +437,7 @@ impl TimePanel {
+             _ => {}
+         }
+ 
+-        if ctx.input.pressed(Key::LeftArrow) {
++        if !crate::traffic_pi::custom_ui() && ctx.input.pressed(Key::LeftArrow) {
+             match self.setting {
+                 SpeedSetting::Realtime => self.pause(ctx, app),
+                 SpeedSetting::Fast => {
+@@ -454,7 +454,7 @@ impl TimePanel {
+                 }
+             }
+         }
+-        if ctx.input.pressed(Key::RightArrow) {
++        if !crate::traffic_pi::custom_ui() && ctx.input.pressed(Key::RightArrow) {
+             match self.setting {
+                 SpeedSetting::Realtime => {
+                     if self.paused {
+@@ -563,4 +563,13 @@ impl TimePanel {
+     pub fn is_paused(&self) -> bool {
+         self.paused
+     }
++
++    pub fn traffic_pi_speed(&self) -> f64 {
++        match self.setting { SpeedSetting::Realtime => 1.0, SpeedSetting::Fast => 5.0, SpeedSetting::Faster => 30.0, SpeedSetting::Fastest => 3600.0 }
++    }
++
++    pub fn traffic_pi_set_speed(&mut self, ctx: &mut EventCtx, app: &App, setting: SpeedSetting) {
++        self.setting = setting;
++        self.recreate_panel(ctx, app);
++    }
+ }
+diff --git a/importer/src/lib.rs b/importer/src/lib.rs
+index db07fc6..b69d2c5 100644
+--- a/importer/src/lib.rs
++++ b/importer/src/lib.rs
+@@ -58,7 +58,7 @@ pub async fn oneshot(
+     let name = abstutil::basename(&osm_path);
+     let raw = convert_osm::convert(
+         osm_path,
+-        MapName::new("zz", "oneshot", &name),
++        MapName::new("cn", "chongqing", &name),
+         clip,
+         options,
+         &mut timer,
+diff --git a/map_gui/src/load.rs b/map_gui/src/load.rs
+index fd892c5..ad0b803 100644
+--- a/map_gui/src/load.rs
++++ b/map_gui/src/load.rs
+@@ -31,7 +31,7 @@ impl MapLoader {
+     ) -> Box<dyn State<A>> {
+         // TODO Generalize this more, maybe with some kind of country code -> font config
+         if let Some(extra_font) = match name.city.country.as_ref() {
+-            "hk" | "jp" | "tw" => Some("NotoSerifCJKtc-Regular.otf"),
++            "cn" | "hk" | "jp" | "tw" => Some("NotoSerifCJKtc-Regular.otf"),
+             "il" => Some("NotoSansHebrew-Regular.ttf"),
+             "ir" | "ly" => Some("NotoSansArabic-Regular.ttf"),
+             "kr" => Some("NotoSansKR-Regular.ttf"),
+diff --git a/widgetry/src/lib.rs b/widgetry/src/lib.rs
+index 368b636..75d6f39 100644
+--- a/widgetry/src/lib.rs
++++ b/widgetry/src/lib.rs
+@@ -100,6 +100,7 @@ mod screen_geom;
+ mod style;
+ mod svg;
+ mod text;
++mod zh_cn;
+ pub mod tools;
+ mod widgets;
+ 
+diff --git a/widgetry/src/text.rs b/widgetry/src/text.rs
+index cf39a2b..71fe7c4 100644
+--- a/widgetry/src/text.rs
++++ b/widgetry/src/text.rs
+@@ -162,8 +162,9 @@ impl TextSpan {
+ // TODO What's the better way of doing this? Also "Line" is a bit of a misnomer
+ #[allow(non_snake_case)]
+ pub fn Line<S: Into<String>>(text: S) -> TextSpan {
++    let text = text.into();
+     TextSpan {
+-        text: text.into(),
++        text: crate::zh_cn::translate(&text),
+         fg_color: None,
+         outline_color: None,
+         size: DEFAULT_FONT_SIZE,
+diff --git a/apps/game/src/traffic_pi.rs b/apps/game/src/traffic_pi.rs
+new file mode 100644
+--- /dev/null
++++ b/apps/game/src/traffic_pi.rs
+@@ -0,0 +1,769 @@
++use std::collections::BTreeMap;
++
++use anyhow::{bail, Context, Result};
++use geom::{Duration, Pt2D, Time};
++use map_model::{ControlTrafficSignal, IntersectionID, RoadID, StageType, Traversable};
++use serde_json::{json, Value};
++use sim::{AgentID, CarStatus, Sim};
++use widgetry::{Color, EventCtx, GfxCtx, UpdateType};
++
++use crate::app::App;
++use crate::sandbox::{SpeedSetting, TimePanel};
++
++thread_local! { static CUSTOM_UI: std::cell::Cell<bool> = std::cell::Cell::new(false); }
++pub fn custom_ui() -> bool {
++    CUSTOM_UI.with(|value| value.get())
++}
++
++#[cfg(target_arch = "wasm32")]
++use wasm_bindgen::prelude::*;
++#[cfg(target_arch = "wasm32")]
++#[wasm_bindgen]
++extern "C" {
++    #[wasm_bindgen(js_namespace = window, js_name = trafficPiTakeCommand)]
++    fn take_command() -> Option<String>;
++    #[wasm_bindgen(js_namespace = window, js_name = trafficPiRespond)]
++    fn respond(id: &str, payload: &str, ok: bool);
++    #[wasm_bindgen(js_namespace = window, js_name = trafficPiReady)]
++    fn ready();
++    #[wasm_bindgen(js_namespace = window, js_name = trafficPiViewChanged)]
++    fn view_changed(payload: &str);
++}
++#[cfg(not(target_arch = "wasm32"))]
++fn take_command() -> Option<String> {
++    None
++}
++#[cfg(not(target_arch = "wasm32"))]
++fn respond(_: &str, _: &str, _: bool) {}
++#[cfg(not(target_arch = "wasm32"))]
++fn ready() {}
++#[cfg(not(target_arch = "wasm32"))]
++fn view_changed(_: &str) {}
++
++struct Camera {
++    from: (f64, f64, f64),
++    to: (f64, f64, f64),
++    started: instant::Instant,
++}
++struct Capture {
++    checkpoint: Sim,
++    start: f64,
++    duration: f64,
++    map: String,
++    scenario: String,
++    metrics: Value,
++    checkpoint_id: String,
++}
++struct Advance {
++    id: String,
++    target: Time,
++    capture: Option<(String, Sim, f64, f64, String)>,
++}
++
++#[derive(Default)]
++pub struct TrafficPi {
++    pub custom_ui: bool,
++    highlights: Vec<(RoadID, String)>,
++    camera: Option<Camera>,
++    originals: BTreeMap<IntersectionID, ControlTrafficSignal>,
++    captures: BTreeMap<String, Capture>,
++    advance: Option<Advance>,
++    initialized: bool,
++    last_view: Option<(f64, f64, f64, f64, f64, bool)>,
++}
++
++fn seconds(app: &App) -> f64 {
++    (app.primary.sim.time() - Time::START_OF_DAY).inner_seconds()
++}
++fn number(p: &Value, key: &str) -> Result<f64> {
++    p[key]
++        .as_f64()
++        .filter(|v| v.is_finite() && *v >= 0.0)
++        .with_context(|| format!("Invalid {}", key))
++}
++fn index(p: &Value, key: &str) -> Result<usize> {
++    p[key]
++        .as_u64()
++        .map(|v| v as usize)
++        .with_context(|| format!("Invalid {}", key))
++}
++fn ids(p: &Value, key: &str) -> Result<Option<Vec<usize>>> {
++    p.get(key)
++        .map(|v| {
++            v.as_array()
++                .context("Expected ID array")?
++                .iter()
++                .map(|id| id.as_u64().map(|v| v as usize).context("Invalid ID"))
++                .collect()
++        })
++        .transpose()
++}
++
++fn camera_area(ctx: &EventCtx, p: &Value) -> Result<(f64, f64, f64, f64)> {
++    let mut edges = [0.0; 4];
++    if let Some(padding) = p.get("padding") {
++        padding.as_object().context("Invalid camera padding")?;
++        for (i, key) in ["left", "top", "right", "bottom"].iter().enumerate() {
++            if padding.get(key).is_some() {
++                edges[i] = number(padding, key)?;
++            }
++        }
++    }
++    let width = ctx.canvas.window_width - edges[0] - edges[2];
++    let height = ctx.canvas.window_height - edges[1] - edges[3];
++    if width < 16.0 || height < 16.0 {
++        bail!("Camera padding leaves no visible area");
++    }
++    Ok((edges[0], edges[1], width, height))
++}
++
++impl TrafficPi {
++    pub fn event(&mut self, ctx: &mut EventCtx, app: &mut App, panel: &mut TimePanel) {
++        if !self.initialized {
++            panel.pause(ctx, app);
++            self.custom_ui = custom_ui();
++            self.initialized = true;
++        }
++        ready();
++        #[cfg(target_arch = "wasm32")]
++        ctx.request_update(UpdateType::Game);
++        if let Some(camera) = &self.camera {
++            let t = (camera.started.elapsed().as_secs_f64() / 0.7).min(1.0);
++            let ease = t * t * (3.0 - 2.0 * t);
++            ctx.canvas.cam_x = camera.from.0 + (camera.to.0 - camera.from.0) * ease;
++            ctx.canvas.cam_y = camera.from.1 + (camera.to.1 - camera.from.1) * ease;
++            ctx.canvas.cam_zoom = camera.from.2 + (camera.to.2 - camera.from.2) * ease;
++            if t >= 1.0 {
++                self.camera = None;
++            } else {
++                ctx.request_update(UpdateType::Game);
++            }
++        }
++        if let Some(mut run) = self.advance.take() {
++            app.primary.sim.time_limited_step(
++                &app.primary.map,
++                run.target - app.primary.sim.time(),
++                Duration::seconds(0.025),
++                &mut app.primary.sim_cb,
++            );
++            if app.primary.sim.time() >= run.target {
++                let data = if let Some((name, checkpoint, start, duration, checkpoint_id)) =
++                    run.capture.take()
++                {
++                    let metrics = self.summary(app, start);
++                    self.captures.insert(
++                        name.clone(),
++                        Capture {
++                            checkpoint,
++                            start,
++                            duration,
++                            checkpoint_id,
++                            map: app.primary.map.get_name().path(),
++                            scenario: app.primary.sim.get_run_name().to_string(),
++                            metrics: metrics.clone(),
++                        },
++                    );
++                    json!({"captureId":name,"startTimeSeconds":start,"durationSeconds":duration,"simulationTime":seconds(app),"metrics":metrics,"scene":app.primary.sim.get_run_name(),"randomSeed":app.primary.current_flags.sim_flags.rng_seed})
++                } else {
++                    self.state(app, panel)
++                };
++                respond(&run.id, &data.to_string(), true);
++            } else {
++                self.advance = Some(run);
++                ctx.request_update(UpdateType::Game);
++            }
++        }
++        if let Some(raw) = take_command() {
++            match serde_json::from_str::<Value>(&raw) {
++                Ok(cmd) => {
++                    let id = cmd["id"].as_str().unwrap_or("");
++                    match self.command(ctx, app, panel, &cmd) {
++                        Ok(Some(value)) => respond(id, &value.to_string(), true),
++                        Ok(None) => {}
++                        Err(error) => respond(id, &format!("{:#}", error), false),
++                    }
++                }
++                Err(error) => log::error!("Invalid Traffic Pi command: {}", error),
++            }
++        }
++        self.notify_view(ctx);
++    }
++
++    fn notify_view(&mut self, ctx: &EventCtx) {
++        let view = (
++            ctx.canvas.cam_x,
++            ctx.canvas.cam_y,
++            ctx.canvas.cam_zoom,
++            ctx.canvas.window_width,
++            ctx.canvas.window_height,
++            self.camera.is_some(),
++        );
++        if self.last_view != Some(view) {
++            self.last_view = Some(view);
++            view_changed(&json!({"x":view.0,"y":view.1,"zoom":view.2,"width":view.3,"height":view.4,"moving":view.5}).to_string());
++        }
++    }
++
++    fn state(&self, app: &App, panel: &TimePanel) -> Value {
++        json!({"simulationTime":seconds(app),"paused":panel.is_paused(),"speedMultiplier":panel.traffic_pi_speed(),
++            "map":app.primary.map.get_name().path(),"scene":app.primary.sim.get_run_name(),"scenario":app.primary.sim.get_run_name(),"randomSeed":app.primary.current_flags.sim_flags.rng_seed,"simulationClock":app.primary.sim.time().ampm_tostring(),
++            "capabilities":["traffic-pi-ui-v1"],"busy":self.advance.is_some()})
++    }
++
++    fn roads(&self, app: &App, selected: Option<Vec<usize>>) -> Result<Vec<Value>> {
++        let map = &app.primary.map;
++        let sim = &app.primary.sim;
++        if let Some(ref selected) = selected {
++            for id in selected {
++                if map.maybe_get_r(RoadID(*id)).is_none() {
++                    bail!("Road {} does not exist", id);
++                }
++            }
++        }
++        let mut result = Vec::new();
++        for road in map.all_roads() {
++            if selected.is_none() && !road.lanes.iter().any(|lane| lane.is_driving()) {
++                continue;
++            }
++            if selected
++                .as_ref()
++                .map(|s| !s.contains(&road.id.0))
++                .unwrap_or(false)
++            {
++                continue;
++            }
++            let mut speeds = Vec::new();
++            let mut delay = 0.0;
++            let mut queued = 0;
++            for lane in &road.lanes {
++                if !lane.is_driving() {
++                    continue;
++                }
++                for car in sim.get_draw_cars(Traversable::Lane(lane.id), map) {
++                    if car.status == CarStatus::Parked {
++                        continue;
++                    }
++                    let props = sim.agent_properties(map, AgentID::Car(car.id));
++                    // Match the existing bridge: mean trip-to-date speed and accumulated waiting, not instantaneous detector speed.
++                    let elapsed = props.total_time.inner_seconds();
++                    speeds.push(if elapsed > 0.0 {
++                        props.dist_crossed.inner_meters() / elapsed * 3.6
++                    } else {
++                        0.0
++                    });
++                    delay += props.total_waiting.inner_seconds();
++                    if props.waiting_here > Duration::ZERO {
++                        queued += 1;
++                    }
++                }
++            }
++            let count = speeds.len();
++            let flow = sim
++                .get_analytics()
++                .road_thruput
++                .raw
++                .iter()
++                .filter(|(t, kind, id)| {
++                    *id == road.id
++                        && *t > sim.time() - Duration::seconds(seconds(app).min(3600.0))
++                        && matches!(
++                            kind,
++                            sim::AgentType::Car | sim::AgentType::Bus | sim::AgentType::Train
++                        )
++                })
++                .count();
++            result.push(json!({"roadId":road.id.0,"name":road.get_name(None),"queueVehicles":queued,"activeVehicles":count,
++                "meanVehicleSpeedKph":if count > 0 { Some(speeds.iter().sum::<f64>() / count as f64) } else { Some(0.0) },
++                "meanVehicleDelaySeconds":if count > 0 { delay / count as f64 } else {0.0},"flowVehiclesPerHour":flow}));
++        }
++        if selected.is_none() {
++            result.sort_by(|a, b| {
++                b["queueVehicles"]
++                    .as_u64()
++                    .cmp(&a["queueVehicles"].as_u64())
++                    .then_with(|| {
++                        b["meanVehicleDelaySeconds"]
++                            .as_f64()
++                            .partial_cmp(&a["meanVehicleDelaySeconds"].as_f64())
++                            .unwrap_or(std::cmp::Ordering::Equal)
++                    })
++            });
++            result.truncate(20);
++        }
++        Ok(result)
++    }
++
++    fn summary(&self, app: &App, start: f64) -> Value {
++        let analytics = app.primary.sim.get_analytics();
++        let finished: Vec<_> = analytics
++            .finished_trips
++            .iter()
++            .filter(|(t, _, _, _)| (*t - Time::START_OF_DAY).inner_seconds() > start)
++            .collect();
++        let mut speed = 0.0;
++        let mut queued = 0;
++        let mut count = 0;
++        for car in app.primary.sim.get_all_draw_cars(&app.primary.map) {
++            if car.status == CarStatus::Parked {
++                continue;
++            }
++            let props = app
++                .primary
++                .sim
++                .agent_properties(&app.primary.map, AgentID::Car(car.id));
++            count += 1;
++            let elapsed = props.total_time.inner_seconds();
++            if elapsed > 0.0 {
++                speed += props.dist_crossed.inner_meters() / elapsed * 3.6;
++            }
++            if props.waiting_here > Duration::ZERO {
++                queued += 1;
++            }
++        }
++        let delays: Vec<_> = analytics
++            .intersection_delays
++            .values()
++            .flatten()
++            .filter(|(_, t, _, _)| (*t - Time::START_OF_DAY).inner_seconds() > start)
++            .map(|(_, _, d, _)| d.inner_seconds())
++            .collect();
++        json!({"throughputTrips":finished.len(),"meanVehicleSpeedKph":if count>0{speed/count as f64}else{0.0},"queueVehicles":queued,"meanDelaySeconds":if delays.is_empty(){0.0}else{delays.iter().sum::<f64>()/delays.len() as f64}})
++    }
++
++    fn camera_to(
++        &mut self,
++        ctx: &mut EventCtx,
++        pt: Pt2D,
++        zoom: f64,
++        smooth: bool,
++        area: (f64, f64, f64, f64),
++    ) {
++        let minimum = ctx.canvas.min_zoom()
++            * (area.2 / ctx.canvas.window_width).min(area.3 / ctx.canvas.window_height);
++        let zoom = zoom.max(minimum).min(ctx.canvas.max_zoom());
++        let to = (
++            pt.x() * zoom - area.0 - area.2 / 2.0,
++            pt.y() * zoom - area.1 - area.3 / 2.0,
++            zoom,
++        );
++        if smooth {
++            self.camera = Some(Camera {
++                from: (ctx.canvas.cam_x, ctx.canvas.cam_y, ctx.canvas.cam_zoom),
++                to,
++                started: instant::Instant::now(),
++            });
++            ctx.request_update(UpdateType::Game);
++        } else {
++            self.camera = None;
++            ctx.canvas.cam_x = to.0;
++            ctx.canvas.cam_y = to.1;
++            ctx.canvas.cam_zoom = to.2;
++        }
++    }
++
++    fn command(
++        &mut self,
++        ctx: &mut EventCtx,
++        app: &mut App,
++        panel: &mut TimePanel,
++        cmd: &Value,
++    ) -> Result<Option<Value>> {
++        let action = cmd["action"].as_str().context("Missing action")?;
++        let p = &cmd["params"];
++        if self.advance.is_some()
++            && !["get_simulation_state", "get_view_state", "cancel_camera"].contains(&action)
++        {
++            bail!("Simulation is advancing; wait for completion");
++        }
++        let value = match action {
++            "get_simulation_state" => self.state(app, panel),
++            "pause" => {
++                panel.pause(ctx, app);
++                self.state(app, panel)
++            }
++            "resume" => {
++                panel.resume(ctx, app, SpeedSetting::Realtime);
++                self.state(app, panel)
++            }
++            "faster" | "set_speed" => {
++                let speed = if action == "set_speed" {
++                    number(p, "speedMultiplier")?
++                } else {
++                    let current = panel.traffic_pi_speed();
++                    if current == 1.0 {
++                        5.0
++                    } else if current == 5.0 {
++                        30.0
++                    } else {
++                        3600.0
++                    }
++                };
++                let setting = if speed == 1.0 {
++                    SpeedSetting::Realtime
++                } else if speed == 5.0 {
++                    SpeedSetting::Fast
++                } else if speed == 30.0 {
++                    SpeedSetting::Faster
++                } else if speed == 3600.0 {
++                    SpeedSetting::Fastest
++                } else {
++                    bail!("Unsupported speed")
++                };
++                if action == "faster" {
++                    panel.resume(ctx, app, setting);
++                } else {
++                    panel.traffic_pi_set_speed(ctx, app, setting);
++                }
++                self.state(app, panel)
++            }
++            "get_road_metrics" => {
++                json!({"simulationTime":seconds(app),"roads":self.roads(app,ids(p,"roadIds")?)?,"speedDefinition":"trip-to-date distance / elapsed time","flowWindowSeconds":seconds(app).min(3600.0)})
++            }
++            "get_intersection_metrics" => {
++                let selected = ids(p, "intersectionIds")?;
++                let mut rows = Vec::new();
++                if let Some(ref selected) = selected {
++                    for id in selected {
++                        if app.primary.map.maybe_get_i(IntersectionID(*id)).is_none() {
++                            bail!("Invalid intersection");
++                        }
++                    }
++                }
++                for i in app.primary.map.all_intersections() {
++                    if selected
++                        .as_ref()
++                        .map(|v| !v.contains(&i.id.0))
++                        .unwrap_or(!i.is_traffic_signal())
++                    {
++                        continue;
++                    }
++                    let waiting = app.primary.sim.get_waiting_agents(i.id);
++                    let phase = if i.is_traffic_signal() {
++                        Some(app.primary.sim.current_stage_and_remaining_time(i.id).0)
++                    } else {
++                        None
++                    };
++                    let delays = app
++                        .primary
++                        .sim
++                        .get_analytics()
++                        .intersection_delays
++                        .get(&i.id)
++                        .cloned()
++                        .unwrap_or_default();
++                    let delays: Vec<_> = delays
++                        .iter()
++                        .filter(|(_, t, _, _)| {
++                            *t > app.primary.sim.time()
++                                - Duration::seconds(seconds(app).min(3600.0))
++                        })
++                        .collect();
++                    let flow = app
++                        .primary
++                        .sim
++                        .get_analytics()
++                        .intersection_thruput
++                        .raw
++                        .iter()
++                        .filter(|(t, kind, id)| {
++                            *id == i.id
++                                && *t
++                                    > app.primary.sim.time()
++                                        - Duration::seconds(seconds(app).min(3600.0))
++                                && matches!(
++                                    kind,
++                                    sim::AgentType::Car
++                                        | sim::AgentType::Bus
++                                        | sim::AgentType::Train
++                                )
++                        })
++                        .count();
++                    rows.push(json!({"intersectionId":i.id.0,"osmNodeId":i.orig_id.0,"queueVehicles":waiting.iter().filter(|(a,_,_)|matches!(a,AgentID::Car(_))).count(),"currentStage":phase,"stageRemainingSeconds":if i.is_traffic_signal(){Some(app.primary.sim.current_stage_and_remaining_time(i.id).1.inner_seconds())}else{None},"flowVehiclesPerHour":flow,"meanDelaySecondsLastHour":if delays.is_empty(){0.0}else{delays.iter().map(|(_,_,d,_)|d.inner_seconds()).sum::<f64>()/delays.len() as f64}}));
++                }
++                rows.sort_by(|a, b| {
++                    b["queueVehicles"]
++                        .as_u64()
++                        .cmp(&a["queueVehicles"].as_u64())
++                        .then_with(|| {
++                            b["meanDelaySecondsLastHour"]
++                                .as_f64()
++                                .partial_cmp(&a["meanDelaySecondsLastHour"].as_f64())
++                                .unwrap_or(std::cmp::Ordering::Equal)
++                        })
++                });
++                if selected.is_none() {
++                    rows.truncate(20);
++                }
++                json!({"simulationTime":seconds(app),"intersections":rows})
++            }
++            "set_native_ui" => {
++                self.custom_ui = !p["enabled"].as_bool().context("Missing enabled")?;
++                CUSTOM_UI.with(|v| v.set(self.custom_ui));
++                json!({"nativeUi":!self.custom_ui})
++            }
++            "get_view_state" => {
++                let anchor = if let Some(id) = p["roadId"].as_u64() {
++                    let r = app
++                        .primary
++                        .map
++                        .maybe_get_r(RoadID(id as usize))
++                        .context("Road does not exist")?;
++                    let pt = ctx.canvas.map_to_screen(r.center_pts.middle());
++                    Some(json!({"x":pt.x,"y":pt.y}))
++                } else {
++                    None
++                };
++                json!({"width":ctx.canvas.window_width,"height":ctx.canvas.window_height,"zoom":ctx.canvas.cam_zoom,"moving":self.camera.is_some(),"anchor":anchor,"nativeUi":!self.custom_ui})
++            }
++            "cancel_camera" => {
++                self.camera = None;
++                json!({"cancelled":true})
++            }
++            "focus_on_road" => {
++                let road = app
++                    .primary
++                    .map
++                    .maybe_get_r(RoadID(index(p, "roadId")?))
++                    .context("Road does not exist")?;
++                self.camera_to(
++                    ctx,
++                    road.center_pts.middle(),
++                    p["zoom"].as_f64().unwrap_or(8.0),
++                    p["smooth"].as_bool().unwrap_or(false),
++                    camera_area(ctx, p)?,
++                );
++                json!({"roadId":road.id.0})
++            }
++            "zoom_view" => {
++                let factor = number(p, "factor")?;
++                if !(0.2..=5.0).contains(&factor) {
++                    bail!("Invalid zoom factor");
++                }
++                self.camera_to(
++                    ctx,
++                    ctx.canvas.center_to_map_pt(),
++                    ctx.canvas.cam_zoom * factor,
++                    false,
++                    camera_area(ctx, &Value::Null)?,
++                );
++                json!({"zoom":ctx.canvas.cam_zoom})
++            }
++            "fit_roads" | "global_view" => {
++                let area = camera_area(ctx, p)?;
++                let (pt, zoom) = if action == "fit_roads" {
++                    let selected = ids(p, "roadIds")?.context("Missing roads")?;
++                    if selected.is_empty() {
++                        bail!("Missing roads");
++                    }
++                    let mut bounds = geom::Bounds::new();
++                    for id in selected {
++                        let road = app
++                            .primary
++                            .map
++                            .maybe_get_r(RoadID(id))
++                            .context("Road does not exist")?;
++                        for pt in road.center_pts.points() {
++                            bounds.update(*pt);
++                        }
++                    }
++                    (
++                        bounds.center(),
++                        (area.2 * 0.65 / bounds.width().max(80.0))
++                            .min(area.3 * 0.55 / bounds.height().max(80.0)),
++                    )
++                } else {
++                    (
++                        app.primary.map.get_boundary_polygon().center(),
++                        ctx.canvas.min_zoom()
++                            * (area.2 / ctx.canvas.window_width)
++                                .min(area.3 / ctx.canvas.window_height),
++                    )
++                };
++                self.camera_to(ctx, pt, zoom, p["smooth"].as_bool().unwrap_or(false), area);
++                json!({"zoom":zoom})
++            }
++            "highlight_roads" => {
++                let mut highlights = Vec::new();
++                for road in p["roads"].as_array().context("Missing roads")? {
++                    let id = RoadID(index(road, "roadId")?);
++                    app.primary
++                        .map
++                        .maybe_get_r(id)
++                        .context("Road does not exist")?;
++                    let level = road["level"].as_str().context("Missing level")?;
++                    if !["warning", "severe", "critical"].contains(&level) {
++                        bail!("Invalid level");
++                    }
++                    highlights.push((id, level.to_string()));
++                }
++                self.highlights = highlights;
++                json!({"highlightedRoads":self.highlights.len()})
++            }
++            "clear_highlights" => {
++                self.highlights.clear();
++                json!({"highlightedRoads":0})
++            }
++            "get_signal_plan" => self.signal(app, IntersectionID(index(p, "intersectionId")?))?,
++            "apply_signal_plan" | "restore_signal_plan" => {
++                let id = IntersectionID(index(p, "intersectionId")?);
++                let original = app
++                    .primary
++                    .map
++                    .maybe_get_traffic_signal(id)
++                    .context("Not a signalised intersection")?
++                    .clone();
++                let signal = if action == "restore_signal_plan" {
++                    self.originals
++                        .get(&id)
++                        .context("No saved signal plan")?
++                        .clone()
++                } else {
++                    let mut signal = original.clone();
++                    let durations = p["stageDurationsSeconds"]
++                        .as_array()
++                        .context("Missing durations")?;
++                    if durations.len() != signal.stages.len() {
++                        bail!("Stage count does not match");
++                    }
++                    for (stage, d) in signal.stages.iter_mut().zip(durations) {
++                        let d = d
++                            .as_f64()
++                            .filter(|v| (5.0..=300.0).contains(v))
++                            .context("Invalid stage duration")?;
++                        stage.stage_type = StageType::Fixed(Duration::seconds(d));
++                    }
++                    if p.get("offsetSeconds").is_some() {
++                        signal.offset = Duration::seconds(number(p, "offsetSeconds")?);
++                    }
++                    signal.validate(app.primary.map.get_i(id))?;
++                    self.originals.entry(id).or_insert(original);
++                    signal
++                };
++                app.primary.map.incremental_edit_traffic_signal(signal);
++                app.primary
++                    .sim
++                    .handle_live_edited_traffic_signals(&app.primary.map);
++                self.signal(app, id)?
++            }
++            "run_until" | "run_for" | "capture_metrics" => {
++                let start = seconds(app);
++                let mut capture = None;
++                let target = if action == "run_until" {
++                    number(p, "simulationTimeSeconds")?
++                } else {
++                    start + number(p, "durationSeconds")?
++                };
++                let mut target = target;
++                if action == "capture_metrics" {
++                    let name = p["captureId"]
++                        .as_str()
++                        .context("Missing capture ID")?
++                        .to_string();
++                    if self.captures.contains_key(&name) {
++                        bail!("Capture ID already exists");
++                    }
++                    let duration = number(p, "durationSeconds")?;
++                    let checkpoint = if let Some(baseline) = p["baselineCaptureId"].as_str() {
++                        let base = self.captures.get(baseline).context("Baseline not found")?;
++                        if base.map != app.primary.map.get_name().path()
++                            || base.scenario != *app.primary.sim.get_run_name()
++                            || base.duration != duration
++                        {
++                            bail!("Capture conditions differ");
++                        }
++                        let sim = base.checkpoint.clone();
++                        app.primary.sim = sim.clone();
++                        app.primary
++                            .sim
++                            .handle_live_edited_traffic_signals(&app.primary.map);
++                        target = base.start + duration;
++                        sim
++                    } else {
++                        app.primary.sim.clone()
++                    };
++                    let checkpoint_id = p["baselineCaptureId"]
++                        .as_str()
++                        .map(|base| self.captures[base].checkpoint_id.clone())
++                        .unwrap_or_else(|| name.clone());
++                    capture = Some((name, checkpoint, seconds(app), duration, checkpoint_id));
++                }
++                if target < seconds(app) || target > 172800.0 {
++                    bail!("Invalid target time");
++                }
++                panel.pause(ctx, app);
++                self.advance = Some(Advance {
++                    id: cmd["id"].as_str().unwrap_or("").to_string(),
++                    target: Time::START_OF_DAY + Duration::seconds(target),
++                    capture,
++                });
++                ctx.request_update(UpdateType::Game);
++                return Ok(None);
++            }
++            "compare_metrics" => {
++                let a = self
++                    .captures
++                    .get(
++                        p["baselineCaptureId"]
++                            .as_str()
++                            .context("Missing baseline")?,
++                    )
++                    .context("Baseline not found")?;
++                let b = self
++                    .captures
++                    .get(
++                        p["treatmentCaptureId"]
++                            .as_str()
++                            .context("Missing treatment")?,
++                    )
++                    .context("Treatment not found")?;
++                if a.map != b.map
++                    || a.scenario != b.scenario
++                    || a.start != b.start
++                    || a.duration != b.duration
++                    || a.checkpoint_id != b.checkpoint_id
++                {
++                    bail!("Capture conditions differ");
++                }
++                let mut changes = serde_json::Map::new();
++                for key in [
++                    "throughputTrips",
++                    "meanVehicleSpeedKph",
++                    "queueVehicles",
++                    "meanDelaySeconds",
++                ] {
++                    let av = a.metrics[key].as_f64();
++                    let bv = b.metrics[key].as_f64();
++                    changes.insert(key.into(),json!({"baseline":av,"treatment":bv,"absoluteChange":av.zip(bv).map(|(a,b)|b-a),"relativeChangePercent":av.zip(bv).and_then(|(a,b)|if a==0.0{None}else{Some((b-a)/a*100.0)})}));
++                }
++                json!({"comparable":true,"changes":changes,"startTimeSeconds":a.start,"durationSeconds":a.duration,"scene":a.scenario,"randomSeed":app.primary.current_flags.sim_flags.rng_seed,"simulationTime":seconds(app)})
++            }
++            _ => bail!("Unknown Traffic Pi action: {}", action),
++        };
++        Ok(Some(value))
++    }
++
++    fn signal(&self, app: &App, id: IntersectionID) -> Result<Value> {
++        let signal = app
++            .primary
++            .map
++            .maybe_get_traffic_signal(id)
++            .context("Not a signalised intersection")?;
++        let (current, remaining) = app.primary.sim.current_stage_and_remaining_time(id);
++        Ok(
++            json!({"intersectionId":id.0,"stages":signal.stages.iter().enumerate().map(|(index,s)|json!({"index":index,"durationSeconds":s.stage_type.simple_duration().inner_seconds(),"protectedMovements":s.protected_movements.len(),"yieldMovements":s.yield_movements.len()})).collect::<Vec<_>>(),"offsetSeconds":signal.offset.inner_seconds(),"currentStage":current,"stageRemainingSeconds":remaining.inner_seconds(),"simulationTime":seconds(app)}),
++        )
++    }
++
++    pub fn draw(&self, g: &mut GfxCtx, app: &App) {
++        for (id, level) in &self.highlights {
++            if let Some(r) = app.primary.map.maybe_get_r(*id) {
++                let color = match level.as_str() {
++                    "critical" => Color::hex("#ef4444"),
++                    "severe" => Color::hex("#f97316"),
++                    _ => Color::hex("#eab308"),
++                };
++                g.draw_polygon(color.alpha(0.65), r.get_thick_polygon());
++            }
++        }
++    }
++}

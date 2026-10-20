@@ -12,6 +12,22 @@
 
 默认加载重庆渝中半岛工作日场景，推进到 08:00 后暂停，等待治理工具读取或继续运行。地图基于 2026-09-20 通过 Overpass Kumi 镜像获取的 OpenStreetMap 数据，© OpenStreetMap contributors，按 ODbL 提供；出行需求由 A/B Street `random-scenario` 使用固定随机种子 42 合成，不代表真实交通需求。
 
-中文治理包复现：检出 A/B Street `v0.3.49`，使用 Rust `1.75.0` 和 `wasm32-unknown-unknown` 目标，执行 `git apply --unidiff-zero customization/v0.3.49-traffic-pi.patch`，将 `customization/zh_cn.rs` 复制到 `widgetry/src/zh_cn.rs`，然后在 `web/` 执行 `WASM_PACK_FLAGS=--release make abstreet`。生成的 `game.js` 与 `game_bg.wasm` 必须成对替换。
+中文治理包复现：使用独立的 A/B Street `v0.3.49` 源码检出、Rust `1.75.0`、`wasm32-unknown-unknown` 目标和 `wasm-bindgen-cli 0.2.88`。`customization/v0.3.49-traffic-pi.patch` 包含中文化及完整控制桥源码，不能再叠加旧的中文化补丁。Windows 可在 Traffic Pi 根目录执行：
+
+```powershell
+rustup target add wasm32-unknown-unknown --toolchain 1.75.0
+cargo install wasm-bindgen-cli --version 0.2.88 --locked --root .next/wasm-tools
+./third-party/abstreet/customization/build.ps1 -SourceRoot <独立的v0.3.49源码目录>
+```
+
+构建脚本只生成 `.next/abstreet-candidate` 候选包，不替换部署文件。手工构建可应用完整补丁、复制 `zh_cn.rs`，然后执行与脚本相同的 Cargo/wasm-bindgen 命令。临时源码目录不属于交付依赖；持久源码以补丁为准。
+
+替换前保留部署中的 `game.js` 与 `game_bg.wasm`。先用 `node e2e/abstreet-workflow-bridge.mjs` 采集旧版对照，再设置 `TRAFFIC_PI_CANDIDATE=1` 运行同一测试，验证指标、信号、采集对比及镜头接口。通过后成对替换生成文件，并运行 `e2e/congestion-bridge.mjs` 与 `TRAFFIC_PI_REAL_BRIDGE=1` 的工作区测试。不要单独替换其中一个文件。
 
 该 WASM 包暴露 Traffic Pi 命令桥，读取仿真状态、道路与路口指标，移动镜头和高亮道路，推进仿真，保存、修改及恢复信号方案，并按同一检查点和统计时段采集 A/B 指标。
+
+新版桥在状态中声明 `traffic-pi-ui-v1`，增加 `set_native_ui`、`set_speed`、`get_view_state`、`fit_roads`、`global_view`、`zoom_view`、`cancel_camera`；`focus_on_road` 可接收 `smooth`。这些接口操作画布与面板，不改变仿真时间控制。统一界面关闭被替代原生面板的绘制和事件；“更多”恢复原生操作。暂停时仍处理桥命令及镜头动画，不推进仿真。
+
+道路速度沿用旧桥的在途车辆行程累计距离／累计时间平均值，并非路侧瞬时测速；道路查询默认仅返回排队排名前 20 条机动车道路。指标中的缺失值及采集范围需要在解释结果时保留。常驻流程框架首期只接通拥堵分析，其他技能尚未接通可视化任务阶段。
+
+`focus_on_road`、`fit_roads` 和 `global_view` 支持可选 `padding: { left, top, right, bottom }`，单位为仿真画布内的 CSS 像素。省略时保持居中行为；传入时在剩余可视区域内居中及适配范围。Traffic Pi 根据悬浮控件尺寸及 iframe 缩放换算留白，避免目标道路被流程或详情面板遮挡。留白不得为负或占满画布。
