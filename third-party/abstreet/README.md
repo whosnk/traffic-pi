@@ -28,6 +28,12 @@ cargo install wasm-bindgen-cli --version 0.2.88 --locked --root .next/wasm-tools
 
 新版桥在状态中声明 `traffic-pi-ui-v1`，增加 `set_native_ui`、`set_speed`、`get_view_state`、`fit_roads`、`global_view`、`zoom_view`、`cancel_camera`；`focus_on_road` 可接收 `smooth`。这些接口操作画布与面板，不改变仿真时间控制。统一界面关闭被替代原生面板的绘制和事件；“更多”恢复原生操作。暂停时仍处理桥命令及镜头动画，不推进仿真。
 
-道路速度沿用旧桥的在途车辆行程累计距离／累计时间平均值，并非路侧瞬时测速；道路查询默认仅返回排队排名前 20 条机动车道路。指标中的缺失值及采集范围需要在解释结果时保留。常驻流程框架首期只接通拥堵分析，其他技能尚未接通可视化任务阶段。
+道路速度沿用旧桥的在途车辆行程累计距离／累计时间平均值，并非路侧瞬时测速；道路查询默认仅返回排队排名前 20 条机动车道路。指标中的缺失值及采集范围需要在解释结果时保留。常驻流程接通拥堵检测及拥堵溯源与配时验证，其他技能保持原行为。
 
 `focus_on_road`、`fit_roads` 和 `global_view` 支持可选 `padding: { left, top, right, bottom }`，单位为仿真画布内的 CSS 像素。省略时保持居中行为；传入时在剩余可视区域内居中及适配范围。Traffic Pi 根据悬浮控件尺寸及 iframe 缩放换算留白，避免目标道路被流程或详情面板遮挡。留白不得为负或占满画布。
+
+配时验证桥声明 `traffic-pi-mitigation-v1`，源码位于补丁中的 `traffic_mitigation.rs`。`mitigation_context` 返回道路端点、进口车道、转向／相位、当前等待、下游占用和累计通过数；`mitigation_begin/checkpoint/restore/cancel/finish/heartbeat` 使用任务租约保存及恢复本轮状态。检查点使用仿真器二进制 savestate 保存调度、车辆、需求、随机及信号控制状态，避免多个完整对象副本耗尽 WASM 内存。30 秒失去心跳时尝试恢复起点；页面销毁后不能承诺恢复已销毁实例。
+
+任务锁阻止普通时间／配时写入，地图与查询仍可用。`run_for` 的 `displaySpeed: 5` 按实际经过时间定速推进并保持显示，结束后暂停。候选只支持固定配时，保持周期、offset 与转向权限，并经过行人约束校验。含自适应阶段（包括自适应行人阶段）的路口不会被自动转换。
+
+新桥兼容测试：`TRAFFIC_PI_CANDIDATE=1` 和 `TRAFFIC_PI_CANDIDATE_DIR=.next/abstreet-mitigation-candidate` 运行 `e2e/abstreet-workflow-bridge.mjs`；`node e2e/abstreet-mitigation-bridge.mjs` 检查真实重庆桥的同起点重跑、可见推进、锁与取消恢复。后者在独立测试窗口临时构造固定配时，不修改交付场景。`node e2e/mitigation-workspace.mjs` 使用真实 MCP/SSE 接收链与仿真替身验证选择授权、六阶段流程、方案弹窗、结果及窄屏交互。

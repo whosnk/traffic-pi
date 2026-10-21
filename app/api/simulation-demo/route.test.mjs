@@ -13,6 +13,18 @@ test("requires injected identity and preserves ordinary no-viewer error", async 
   assert.equal((await post({ action: "detect_congestion" })).status, 400);
   assert.equal((await post({ action: "get_simulation_state" })).status, 409);
 });
+
+test("mitigation cancellation matches the originating task across later tool calls", async()=>{
+  reset();
+  const viewer=randomUUID(); await poll(viewer,"mitigation-session");
+  const request={action:"evaluate_signal_plan",sessionId:"mitigation-session",toolCallId:"evaluation-call",params:{taskId:"origin-call",approvalToken:randomUUID(),version:1}};
+  const response=post(request);
+  await new Promise(resolve=>setImmediate(resolve));
+  await post({action:"cancel_detection",sessionId:request.sessionId,toolCallId:"origin-call"});
+  assert.equal((await response).status,502);
+  assert.equal((await post(request)).status,409);
+  assert.equal((await post({...request,action:"finalize_signal_trial",toolCallId:"late-finalize"})).status,409);
+});
 test("waits for matching session registration, then acknowledges exactly once", async () => {
   reset();
   const request = detection();

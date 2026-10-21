@@ -25,6 +25,8 @@ import { AgentEventConnection } from "@/lib/agent-event-connection";
 import { getToolExecutionProgress } from "@/lib/tool-execution-progress";
 import { isCongestionTool, congestionError } from "@/lib/congestion";
 import { congestionStore } from "@/lib/congestion-store";
+import { mitigationStore } from "@/lib/mitigation-store";
+import { mitigationTool } from "@/lib/mitigation";
 import {
   CHAT_SCROLL_REATTACH_TOLERANCE,
   CHAT_SCROLL_TAIL_TOLERANCE,
@@ -1217,6 +1219,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         const id = event.toolCallId as string;
         const name = event.toolName as string;
         if (isCongestionTool(name) && sessionIdRef.current && agentRunningRef.current && detectionAbortedRunRef.current !== promptRunIdRef.current) congestionStore.start(sessionIdRef.current, id, name);
+        if (mitigationTool(name) === "analyze_congestion_cause" && sessionIdRef.current && agentRunningRef.current && detectionAbortedRunRef.current !== promptRunIdRef.current && congestionStore.get(sessionIdRef.current)?.status !== "running") mitigationStore.start(sessionIdRef.current,id,name);
         setAgentPhase((prev) => {
           const tools = prev?.kind === "running_tools" ? [...prev.tools] : [];
           if (!tools.some((t) => t.id === id)) tools.push({ id, name });
@@ -1247,6 +1250,10 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         const id = event.toolCallId as string;
         if (isCongestionTool(event.toolName as string) && sessionIdRef.current && event.isError) {
           congestionStore.finish(sessionIdRef.current, id, congestionError(event.result) || "检测失败，请检查交通 MCP 和项目信任状态。");
+        }
+        if (mitigationTool(event.toolName as string) === "analyze_congestion_cause" && sessionIdRef.current && event.isError) {
+          const task = mitigationStore.get(sessionIdRef.current);
+          if (task?.id === id && task.stage === 0) mitigationStore.end(sessionIdRef.current,id,"failed",congestionError(event.result) || "准备任务失败，请检查 MCP、项目信任与仿真接口。");
         }
         if (sessionIdRef.current) onToolResult?.(sessionIdRef.current, {
           role: "toolResult", toolCallId: id, toolName: event.toolName as string,
@@ -1451,6 +1458,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     if (!sid) return;
     detectionAbortedRunRef.current = promptRunIdRef.current;
     congestionStore.cancel(sid, "Agent 已停止，检测已中止。");
+    mitigationStore.cancel(sid,"Agent 已停止，配时任务已中止并恢复。");
     if (bashRunningRef.current) {
       try {
         await sendAgentCommand(sid, { type: "abort_bash" });

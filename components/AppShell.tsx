@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useGlobalKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { SessionSidebar } from "./SessionSidebar";
 import { ChatWindow } from "./ChatWindow";
+import { mitigationStore, useMitigationTask } from "@/lib/mitigation-store";
+import { mitigationTool } from "@/lib/mitigation";
 import { simtrendContextStore } from "@/lib/simtrend-context";
 import type { IncidentDraftResult } from "@/lib/simtrend-draft";
 import { TrafficWorkspace, type TrafficView } from "./TrafficWorkspace";
@@ -211,6 +213,10 @@ export function AppShell() {
     }
     const result = trafficResultFromMessage(message);
     if (!result) return;
+    if (mitigationTool(message.toolName ?? "")) {
+      const task = mitigationStore.get(sessionId);
+      if (!task || task.id !== (result.data as Record<string, unknown>).taskId || ["failed", "cancelled", "restoring"].includes(task.status)) return;
+    }
     if (trafficResultStore.add(sessionId, result, geoSceneStore.get(sessionId)?.revision ?? -1)) {
       if (result.type === "detect_congestion") {
         congestionStore.result(sessionId, result.id, result.data as CongestionResult);
@@ -232,6 +238,14 @@ export function AppShell() {
     setRightPanelOpen(false);
   }, []);
   const detection = useCongestionTask(selectedSession?.id ?? null);
+  const mitigation = useMitigationTask(selectedSession?.id ?? null);
+  const openedMitigation = useRef("");
+  useEffect(() => {
+    if (mitigation?.status === "running" && openedMitigation.current !== mitigation.id) {
+      openedMitigation.current = mitigation.id;
+      handleOpenTrafficWorkspace(); setTrafficView("abstreet");
+    }
+  },[mitigation,handleOpenTrafficWorkspace]);
   const openedDetection = useRef("");
   useEffect(() => {
     if (detection?.status === "running" && openedDetection.current !== detection.id) {
@@ -2544,6 +2558,7 @@ export function AppShell() {
               onOpenSession={handleOpenSession}
               onAskInNewChat={handleAskInNewChat}
               quoteSelectionEnabled={quoteSelectionEnabled}
+              showMinimap={!trafficWorkspaceOpen}
               initialPrompt={pendingQuotePrompt?.sessionId === selectedSession?.id ? pendingQuotePrompt?.text : undefined}
               onInitialPromptConsumed={() => setPendingQuotePrompt(null)}
               soundEnabled={soundEnabled}
@@ -2623,7 +2638,7 @@ export function AppShell() {
         resultCount={resultState.results.filter(result => result.unread).length}
       />
       <div className="traffic-results-column" inert={!trafficWorkspaceOpen || !trafficResultsOpen} aria-hidden={!trafficWorkspaceOpen || !trafficResultsOpen}>
-        <TrafficResultsPanel results={resultState.results} expandedId={resultState.expandedId} onSelect={handleSelectTrafficResult} onClose={() => setTrafficResultsOpen(false)} onFocusRoad={handleFocusCongestionRoad} />
+        <TrafficResultsPanel sessionId={selectedSession?.id} results={resultState.results} expandedId={resultState.expandedId} onSelect={handleSelectTrafficResult} onClose={() => setTrafficResultsOpen(false)} onFocusRoad={handleFocusCongestionRoad} />
       </div>
       <div
         aria-hidden="true"

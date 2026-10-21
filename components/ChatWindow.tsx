@@ -13,6 +13,7 @@ import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import { SimtrendContextTag } from "./SimtrendContextTag";
 import { simtrendContextStore, withSimtrendContext } from "@/lib/simtrend-context";
 import { ChatMinimap, useMessageRefs } from "./ChatMinimap";
+import { mitigationStore } from "@/lib/mitigation-store";
 import { ExtensionStatusBar } from "./ExtensionStatusBar";
 import { AnsiText } from "./AnsiText";
 import { useI18n } from "@/hooks/useI18n";
@@ -59,6 +60,7 @@ interface Props {
   onOpenSession?: (sessionId: string) => void;
   onAskInNewChat?: (prompt: string, sourceSessionId: string, sourceEntryId: string) => Promise<void>;
   quoteSelectionEnabled?: boolean;
+  showMinimap?: boolean;
   initialPrompt?: string;
   onInitialPromptConsumed?: () => void;
   /** Completion sound state + controls, owned by AppShell so tasks finishing in
@@ -243,7 +245,7 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
   );
 }
 
-export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, newSessionCwd, newSessionDraftKey, onAgentEnd, onAttentionNeeded, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile, onOpenSession, onAskInNewChat, quoteSelectionEnabled = false, initialPrompt, onInitialPromptConsumed, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, onGeoScene, onToolResult }: Props) {
+export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, newSessionCwd, newSessionDraftKey, onAgentEnd, onAttentionNeeded, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile, onOpenSession, onAskInNewChat, quoteSelectionEnabled = false, showMinimap = true, initialPrompt, onInitialPromptConsumed, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, onGeoScene, onToolResult }: Props) {
   const { t } = useI18n();
   const isMobile = useIsMobile();
   const completionNotificationsEnabled = session?.relation?.kind !== "subagent";
@@ -319,6 +321,17 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     window.addEventListener("traffic-start-congestion", start);
     return () => window.removeEventListener("traffic-start-congestion", start);
   }, [session?.id, sessionBusy, handleSend]);
+  useEffect(() => {
+    const start = (event: Event) => {
+      const detail = (event as CustomEvent<{sessionId:string|null;roadId?:number;prompt?:string;handled:boolean}>).detail;
+      if (detail.sessionId !== (session?.id ?? null)) return;
+      detail.handled=true;
+      if (sessionBusy || !detail.prompt && mitigationStore.busy()) event.preventDefault();
+      else void handleSend(detail.prompt ?? `/skill:traffic-mitigation 承接已发现的拥堵，分析并缓解当前拥堵${detail.roadId===undefined?"":`，目标 roadId=${detail.roadId}`}，调用 analyze_congestion_cause 并传 presetScenario:true，展示证据和候选方案等待我选择，随后在页面完成方案验证与决策。`);
+    };
+    window.addEventListener("traffic-start-mitigation",start);
+    return()=>window.removeEventListener("traffic-start-mitigation",start);
+  },[session?.id,sessionBusy,handleSend]);
   useEffect(() => {
     const retry = (event: Event) => {
       if ((event as CustomEvent<string>).detail !== session?.id) return;
@@ -999,7 +1012,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
           position: "absolute",
           top: 12,
           left: 0,
-          right: isMobile ? 0 : CHAT_MINIMAP_WIDTH,
+          right: isMobile || !showMinimap ? 0 : CHAT_MINIMAP_WIDTH,
           zIndex: 40,
           display: "flex",
           // Toasts live in the top-right corner
@@ -1263,7 +1276,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
             </div>
           </div>
         </div>
-        {isMobile || pendingScrollRestore ? null : (
+        {isMobile || !showMinimap || pendingScrollRestore ? null : (
           <ChatMinimap
             messages={messages}
             streamingMessage={streamState.streamingMessage}

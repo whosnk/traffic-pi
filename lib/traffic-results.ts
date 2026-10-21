@@ -11,6 +11,9 @@ const titles = {
   capture_metrics: "指标采集",
   compare_metrics: "方案对比",
   detect_congestion: "当前疑似拥堵道路",
+  analyze_congestion_cause: "拥堵溯源与候选配时",
+  evaluate_signal_plan: "配时验证效果对比",
+  finalize_signal_trial: "配时保留／恢复结果",
 } as const;
 
 export type TrafficResult = {
@@ -70,6 +73,10 @@ export function trafficResultFromMessage(message: ToolResultMessage): TrafficRes
     const data = value.result as Record<string, unknown>;
     if (data.type !== "traffic-pi-congestion" || !Array.isArray(data.roads) || typeof data.metricsCollectedAt !== "string"
       || data.roads.some(road => !road || !Number.isInteger(road.roadId) || !Number.isFinite(road.queueVehicles) || !Number.isFinite(road.meanVehicleSpeedKph))) return null;
+  }
+  if (["analyze_congestion_cause", "evaluate_signal_plan", "finalize_signal_trial"].includes(type)) {
+    const data = value.result as Record<string, unknown>;
+    if (data.type !== "traffic-pi-mitigation" || typeof data.taskId !== "string" || !["awaiting_selection", "awaiting_decision", "completed"].includes(String(data.status)) || typeof data.message !== "string" || !Array.isArray(data.candidates)) return null;
   }
   return {
     id: message.toolCallId, type, title: scene?.title ?? titles[type], receivedAt: Date.now(),

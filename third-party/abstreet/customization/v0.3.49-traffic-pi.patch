@@ -99,7 +99,7 @@ index e06b857..ae19a76 100644
                  "change map" => {
                      let scenario = self.scenario_name.clone();
 diff --git a/apps/game/src/sandbox/mod.rs b/apps/game/src/sandbox/mod.rs
-index fa0fb78..eb168db 100644
+index fa0fb78..8487351 100644
 --- a/apps/game/src/sandbox/mod.rs
 +++ b/apps/game/src/sandbox/mod.rs
 @@ -46,6 +46,7 @@ pub struct SandboxMode {
@@ -127,6 +127,15 @@ index fa0fb78..eb168db 100644
 -        if let Some(ref mut m) = self.controls.minimap {
 +        if let Some(ref mut m) = self.controls.minimap.as_mut().filter(|_| !self.traffic_pi.custom_ui) {
              if let Some(t) = m.event(ctx, app) {
+                 return t;
+             }
+@@ -159,7 +163,7 @@ impl State<App> for SandboxMode {
+             }
+         }
+ 
+-        if let Some(ref mut tp) = self.controls.time_panel {
++        if let Some(ref mut tp) = self.controls.time_panel.as_mut().filter(|_| !self.traffic_pi.task_locked()) {
+             if let Some(t) = tp.event(ctx, app, Some(&self.gameplay_mode)) {
                  return t;
              }
 @@ -192,7 +196,7 @@ impl State<App> for SandboxMode {
@@ -282,7 +291,7 @@ diff --git a/apps/game/src/traffic_pi.rs b/apps/game/src/traffic_pi.rs
 new file mode 100644
 --- /dev/null
 +++ b/apps/game/src/traffic_pi.rs
-@@ -0,0 +1,769 @@
+@@ -0,0 +1,789 @@
 +use std::collections::BTreeMap;
 +
 +use anyhow::{bail, Context, Result};
@@ -343,6 +352,7 @@ new file mode 100644
 +    id: String,
 +    target: Time,
 +    capture: Option<(String, Sim, f64, f64, String)>,
++    pace: Option<(instant::Instant, Time, f64)>,
 +}
 +
 +#[derive(Default)]
@@ -355,7 +365,12 @@ new file mode 100644
 +    advance: Option<Advance>,
 +    initialized: bool,
 +    last_view: Option<(f64, f64, f64, f64, f64, bool)>,
++    task_owner: Option<String>,
++    task_seen: Option<instant::Instant>,
++    task_checkpoints: BTreeMap<String, TaskCheckpoint>,
 +}
++
++include!("traffic_mitigation.rs");
 +
 +fn seconds(app: &App) -> f64 {
 +    (app.primary.sim.time() - Time::START_OF_DAY).inner_seconds()
@@ -410,6 +425,12 @@ new file mode 100644
 +            self.initialized = true;
 +        }
 +        ready();
++        if self.task_seen.map(|at| at.elapsed().as_secs() > 30).unwrap_or(false) {
++            self.cancel_advance();
++            if self.restore_task_checkpoint(ctx, app, panel, "origin", true).is_ok() {
++                self.task_owner = None; self.task_seen = None; self.task_checkpoints.clear();
++            }
++        }
 +        #[cfg(target_arch = "wasm32")]
 +        ctx.request_update(UpdateType::Game);
 +        if let Some(camera) = &self.camera {
@@ -425,12 +446,13 @@ new file mode 100644
 +            }
 +        }
 +        if let Some(mut run) = self.advance.take() {
-+            app.primary.sim.time_limited_step(
++            let limit = run.pace.as_ref().map(|(clock,start,speed)| (*start + Duration::seconds(clock.elapsed().as_secs_f64() * speed)).min(run.target)).unwrap_or(run.target);
++            if limit > app.primary.sim.time() { app.primary.sim.time_limited_step(
 +                &app.primary.map,
-+                run.target - app.primary.sim.time(),
++                limit - app.primary.sim.time(),
 +                Duration::seconds(0.025),
 +                &mut app.primary.sim_cb,
-+            );
++            ); }
 +            if app.primary.sim.time() >= run.target {
 +                let data = if let Some((name, checkpoint, start, duration, checkpoint_id)) =
 +                    run.capture.take()
@@ -492,7 +514,7 @@ new file mode 100644
 +    fn state(&self, app: &App, panel: &TimePanel) -> Value {
 +        json!({"simulationTime":seconds(app),"paused":panel.is_paused(),"speedMultiplier":panel.traffic_pi_speed(),
 +            "map":app.primary.map.get_name().path(),"scene":app.primary.sim.get_run_name(),"scenario":app.primary.sim.get_run_name(),"randomSeed":app.primary.current_flags.sim_flags.rng_seed,"simulationClock":app.primary.sim.time().ampm_tostring(),
-+            "capabilities":["traffic-pi-ui-v1"],"busy":self.advance.is_some()})
++            "capabilities":["traffic-pi-ui-v1","traffic-pi-mitigation-v1"],"busy":self.advance.is_some(),"taskLocked":self.task_owner.is_some()})
 +    }
 +
 +    fn roads(&self, app: &App, selected: Option<Vec<usize>>) -> Result<Vec<Value>> {
@@ -655,12 +677,18 @@ new file mode 100644
 +    ) -> Result<Option<Value>> {
 +        let action = cmd["action"].as_str().context("Missing action")?;
 +        let p = &cmd["params"];
++        if action.starts_with("mitigation_") && action != "mitigation_context" {
++            return self.task_command(ctx, app, panel, action, p).map(Some);
++        }
++        let read_or_camera = ["get_simulation_state", "get_view_state", "get_road_metrics", "get_intersection_metrics", "get_signal_plan", "mitigation_context", "cancel_camera", "focus_on_road", "fit_roads", "global_view", "zoom_view"].contains(&action);
++        if self.task_owner.is_some() && !read_or_camera && self.task_owner.as_deref() != p["leaseId"].as_str() { bail!("Signal trial active: time and signal controls are locked"); }
 +        if self.advance.is_some()
-+            && !["get_simulation_state", "get_view_state", "cancel_camera"].contains(&action)
++            && !read_or_camera
 +        {
 +            bail!("Simulation is advancing; wait for completion");
 +        }
 +        let value = match action {
++            "mitigation_context" => self.mitigation_context(app, p)?,
 +            "get_simulation_state" => self.state(app, panel),
 +            "pause" => {
 +                panel.pause(ctx, app);
@@ -980,6 +1008,7 @@ new file mode 100644
 +                    id: cmd["id"].as_str().unwrap_or("").to_string(),
 +                    target: Time::START_OF_DAY + Duration::seconds(target),
 +                    capture,
++                    pace: if p["displaySpeed"].is_number() { Some((instant::Instant::now(), app.primary.sim.time(), number(p,"displaySpeed")?.max(0.1).min(30.0))) } else { None },
 +                });
 +                ctx.request_update(UpdateType::Game);
 +                return Ok(None);
@@ -1035,7 +1064,7 @@ new file mode 100644
 +            .context("Not a signalised intersection")?;
 +        let (current, remaining) = app.primary.sim.current_stage_and_remaining_time(id);
 +        Ok(
-+            json!({"intersectionId":id.0,"stages":signal.stages.iter().enumerate().map(|(index,s)|json!({"index":index,"durationSeconds":s.stage_type.simple_duration().inner_seconds(),"protectedMovements":s.protected_movements.len(),"yieldMovements":s.yield_movements.len()})).collect::<Vec<_>>(),"offsetSeconds":signal.offset.inner_seconds(),"currentStage":current,"stageRemainingSeconds":remaining.inner_seconds(),"simulationTime":seconds(app)}),
++            json!({"intersectionId":id.0,"stages":signal.stages.iter().enumerate().map(|(index,s)|json!({"index":index,"durationSeconds":s.stage_type.simple_duration().inner_seconds(),"minimumSeconds":signal.get_min_crossing_time(index,app.primary.map.get_i(id)).inner_seconds().max(5.0),"fixed":matches!(s.stage_type,StageType::Fixed(_)),"movements":s.protected_movements.iter().chain(s.yield_movements.iter()).map(|m|json!({"fromRoadId":m.from.road.0,"toRoadId":m.to.road.0,"fromDirection":format!("{:?}",m.from.dir),"crosswalk":m.crosswalk,"protected":s.protected_movements.contains(m)})).collect::<Vec<_>>(),"protectedMovements":s.protected_movements.len(),"yieldMovements":s.yield_movements.len()})).collect::<Vec<_>>(),"offsetSeconds":signal.offset.inner_seconds(),"currentStage":current,"stageRemainingSeconds":remaining.inner_seconds(),"simulationTime":seconds(app)}),
 +        )
 +    }
 +
@@ -1050,5 +1079,151 @@ new file mode 100644
 +                g.draw_polygon(color.alpha(0.65), r.get_thick_polygon());
 +            }
 +        }
++    }
++}
+diff --git a/apps/game/src/traffic_mitigation.rs b/apps/game/src/traffic_mitigation.rs
+new file mode 100644
+--- /dev/null
++++ b/apps/game/src/traffic_mitigation.rs
+@@ -0,0 +1,141 @@
++struct TaskCheckpoint {
++    sim: Vec<u8>,
++    signals: Vec<ControlTrafficSignal>,
++    originals: BTreeMap<IntersectionID, ControlTrafficSignal>,
++    paused: bool,
++    speed: f64,
++}
++
++impl TrafficPi {
++    pub fn task_locked(&self) -> bool { self.task_owner.is_some() }
++
++    fn save_task_checkpoint(&mut self, app: &App, panel: &TimePanel, name: String) {
++        self.task_checkpoints.insert(name, TaskCheckpoint {
++            sim: abstutil::to_binary(&app.primary.sim),
++            signals: app.primary.map.all_intersections().iter().filter_map(|i| app.primary.map.maybe_get_traffic_signal(i.id).cloned()).collect(),
++            originals: self.originals.clone(),
++            paused: panel.is_paused(), speed: panel.traffic_pi_speed(),
++        });
++    }
++
++    fn restore_task_checkpoint(&mut self, ctx: &mut EventCtx, app: &mut App, panel: &mut TimePanel, name: &str, restore_control: bool) -> Result<()> {
++        let checkpoint = self.task_checkpoints.get(name).context("Task checkpoint not found")?;
++        for signal in &checkpoint.signals { app.primary.map.incremental_edit_traffic_signal(signal.clone()); }
++        app.primary.sim = abstutil::from_binary(&checkpoint.sim)?;
++        self.originals = checkpoint.originals.clone();
++        // The savestate contains the signal controller and scheduler state.
++        panel.pause(ctx, app);
++        if restore_control { Self::task_control(ctx, app, panel, checkpoint.paused, checkpoint.speed); }
++        Ok(())
++    }
++
++    fn task_control(ctx: &mut EventCtx, app: &mut App, panel: &mut TimePanel, paused: bool, speed: f64) {
++        let setting = if speed == 5.0 { SpeedSetting::Fast } else if speed == 30.0 { SpeedSetting::Faster } else if speed == 3600.0 { SpeedSetting::Fastest } else { SpeedSetting::Realtime };
++        panel.traffic_pi_set_speed(ctx, app, setting);
++        if paused { panel.pause(ctx, app); } else { panel.resume(ctx, app, setting); }
++    }
++
++    fn cancel_advance(&mut self) {
++        if let Some(run) = self.advance.take() { respond(&run.id, "Simulation advance cancelled", false); }
++    }
++
++    fn task_command(&mut self, ctx: &mut EventCtx, app: &mut App, panel: &mut TimePanel, action: &str, p: &Value) -> Result<Value> {
++        let owner = p["leaseId"].as_str().context("Missing task lease")?;
++        if action == "mitigation_begin" {
++            if self.task_owner.is_some() || self.advance.is_some() { bail!("Another simulation task is active"); }
++            if owner.is_empty() { bail!("Invalid task lease"); }
++            self.task_checkpoints.clear();
++            self.save_task_checkpoint(app, panel, "origin".into());
++            self.task_owner = Some(owner.to_string());
++            self.custom_ui = true;
++            CUSTOM_UI.with(|v| v.set(true));
++            panel.pause(ctx, app);
++        } else if self.task_owner.as_deref() != Some(owner) { bail!("Task lease has expired"); }
++        self.task_seen = Some(instant::Instant::now());
++        match action {
++            "mitigation_begin" | "mitigation_heartbeat" => {},
++            "mitigation_checkpoint" => { self.save_task_checkpoint(app, panel, p["name"].as_str().context("Missing checkpoint name")?.into()); },
++            "mitigation_restore" => {
++                self.cancel_advance();
++                self.restore_task_checkpoint(ctx, app, panel, p["name"].as_str().context("Missing checkpoint name")?, false)?;
++            },
++            "mitigation_cancel" => {
++                self.cancel_advance();
++                self.restore_task_checkpoint(ctx, app, panel, "origin", true)?;
++                self.task_owner = None; self.task_seen = None; self.task_checkpoints.clear();
++            },
++            "mitigation_finish" => {
++                let name = p["name"].as_str().context("Missing checkpoint name")?;
++                self.restore_task_checkpoint(ctx, app, panel, name, false)?;
++                let original = self.task_checkpoints.get("origin").context("Missing origin")?;
++                Self::task_control(ctx, app, panel, original.paused, original.speed);
++                self.task_owner = None; self.task_seen = None; self.task_checkpoints.clear();
++            },
++            "mitigation_validate_plan" => {
++                let id = IntersectionID(index(p, "intersectionId")?);
++                let mut signal = app.primary.map.maybe_get_traffic_signal(id).context("Not a signal")?.clone();
++                let durations = p["stageDurationsSeconds"].as_array().context("Missing durations")?;
++                if durations.len() != signal.stages.len() { bail!("Stage count mismatch"); }
++                let cycle = signal.stages.iter().map(|s| s.stage_type.simple_duration().inner_seconds()).sum::<f64>();
++                for (stage, duration) in signal.stages.iter_mut().zip(durations) {
++                    if !matches!(stage.stage_type, StageType::Fixed(_)) { bail!("Adaptive signal is unsupported"); }
++                    let d = duration.as_f64().filter(|d| d.is_finite() && *d >= 5.0 && *d <= 300.0).context("Invalid duration")?;
++                    stage.stage_type = StageType::Fixed(Duration::seconds(d));
++                }
++                if (signal.stages.iter().map(|s| s.stage_type.simple_duration().inner_seconds()).sum::<f64>() - cycle).abs() > 0.001 { bail!("Cycle length changed"); }
++                signal.validate(app.primary.map.get_i(id))?;
++                return Ok(json!({"valid":true}));
++            },
++            _ => bail!("Unknown mitigation task command"),
++        }
++        Ok(self.state(app, panel))
++    }
++
++    fn mitigation_context(&self, app: &App, p: &Value) -> Result<Value> {
++        let road_id = RoadID(index(p, "roadId")?);
++        let road = app.primary.map.maybe_get_r(road_id).context("Road does not exist")?;
++        let mut endpoints = Vec::new();
++        for id in [road.src_i, road.dst_i] {
++            let i = app.primary.map.get_i(id);
++            let incoming: Vec<_> = road.lanes.iter().filter(|l| l.is_driving() && l.dst_i == id).collect();
++            if incoming.is_empty() { continue; }
++            let queue: usize = incoming.iter().map(|l| app.primary.sim.get_draw_cars(Traversable::Lane(l.id), &app.primary.map).iter().filter(|c| app.primary.sim.agent_properties(&app.primary.map, AgentID::Car(c.id)).waiting_here > Duration::ZERO).count()).sum();
++            endpoints.push(json!({"intersectionId":id.0,"signalised":i.is_traffic_signal(),"queueVehicles":queue}));
++        }
++        endpoints.sort_by(|a,b| b["queueVehicles"].as_u64().cmp(&a["queueVehicles"].as_u64()));
++        let id = if p["intersectionId"].is_u64() { IntersectionID(index(p,"intersectionId")?) } else { IntersectionID(endpoints.first().context("No driving lane")?["intersectionId"].as_u64().unwrap() as usize) };
++        if id != road.src_i && id != road.dst_i { bail!("Intersection is not connected to target road"); }
++        let i = app.primary.map.get_i(id);
++        let signal = app.primary.map.maybe_get_traffic_signal(id);
++        let mut approaches = Vec::new();
++        for r in &i.roads {
++            let r = app.primary.map.get_r(*r);
++            let lanes: Vec<_> = r.lanes.iter().filter(|l| l.is_driving() && l.dst_i == id).collect();
++            if lanes.is_empty() { continue; }
++            let mut queued = 0; let mut waiting = 0.0; let mut occupancy: f64 = 0.0;
++            for lane in &lanes {
++                if let Some((reserved,total)) = app.primary.sim.debug_queue_lengths(lane.id) { if total.inner_meters() > 0.0 { occupancy = occupancy.max(reserved.inner_meters()/total.inner_meters()); } }
++                for car in app.primary.sim.get_draw_cars(Traversable::Lane(lane.id), &app.primary.map) {
++                    if car.status == CarStatus::Parked { continue; }
++                    let properties = app.primary.sim.agent_properties(&app.primary.map, AgentID::Car(car.id));
++                    if properties.waiting_here > Duration::ZERO { queued += 1; waiting += properties.waiting_here.inner_seconds(); }
++                }
++            }
++            let movements: Vec<_> = i.movements.iter().filter(|(m,_)| !m.crosswalk && m.from.road == r.id && m.from.dst_i(&app.primary.map) == id).collect();
++            let movement_ids: Vec<_> = movements.iter().map(|(m,_)| *m).collect();
++            let passed = app.primary.sim.get_analytics().traffic_signal_thruput.raw.iter().filter(|(_,kind,m)| m.i == id && matches!(kind,sim::AgentType::Car|sim::AgentType::Bus|sim::AgentType::Train) && i.movements.keys().nth(m.idx as usize).map(|m|movement_ids.contains(&m)).unwrap_or(false)).count();
++            let mut downstream = Vec::new();
++            for (_,movement) in movements {
++                for turn in &movement.members {
++                    let lane = app.primary.map.get_l(turn.dst);
++                    if !lane.is_driving() { continue; }
++                    if let Some((reserved,total)) = app.primary.sim.debug_queue_lengths(lane.id) { if total.inner_meters()>0.0 { downstream.push(reserved.inner_meters()/total.inner_meters()); } }
++                }
++            }
++            let signal_waiting = app.primary.sim.get_waiting_agents(id).iter().filter(|(a,turn,_)|matches!(a,AgentID::Car(_)) && turn.src.road == r.id).count();
++            approaches.push(json!({"roadId":r.id.0,"name":r.get_name(None),"toIntersectionId":id.0,"laneIds":lanes.iter().map(|l|json!({"roadId":l.id.road.0,"offset":l.id.offset})).collect::<Vec<_>>(),"queueVehicles":queued,"currentWaitingSeconds":waiting,"waitingAtIntersection":signal_waiting,"occupancy":occupancy,"downstreamOccupancy":downstream.into_iter().fold(0.0_f64,f64::max),"passedVehicles":passed}));
++        }
++        let target_stages: Vec<_> = signal.map(|s|s.stages.iter().enumerate().filter(|(_,stage)|stage.protected_movements.iter().any(|m|!m.crosswalk && m.from.road==road_id && m.from.dst_i(&app.primary.map)==id)).map(|(index,_)|index).collect::<Vec<_>>()).unwrap_or_default();
++        Ok(json!({"roadId":road_id.0,"roadName":road.get_name(None),"endpoints":endpoints,"intersectionId":id.0,"approaches":approaches,"targetStages":target_stages,"signal":if signal.is_some(){Some(self.signal(app,id)?)}else{None},"simulationTime":seconds(app),"map":app.primary.map.get_name().path(),"scene":app.primary.sim.get_run_name(),"randomSeed":app.primary.current_flags.sim_flags.rng_seed,"collectedAtSimulationSeconds":seconds(app)}))
 +    }
 +}

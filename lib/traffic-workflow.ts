@@ -7,16 +7,16 @@ export type WorkflowTask = {
   stage: number;
   stageTimes?: Record<number, number>;
   message: string;
-  status: "running" | "failed" | "completed" | "cancelled";
+  status: "running" | "failed" | "completed" | "cancelled" | "awaiting_selection" | "awaiting_decision" | "restoring";
   startedAt: number;
   endedAt?: number;
   calls: WorkflowCall[];
 };
 
-export function workflowStepState(task: WorkflowTask | null, index: number) {
+export function workflowStepState(task: WorkflowTask | null, index: number): "waiting" | "running" | "completed" | "failed" | "cancelled" {
   if (!task) return "waiting";
-  if (task.status === "completed" || index < task.stage) return "completed";
-  if (index === task.stage) return task.status === "running" ? "running" : task.status;
+  if (index < task.stage || (task.status === "completed" && index === task.stage)) return "completed";
+  if (index === task.stage) return task.status === "failed" || task.status === "cancelled" ? task.status : "running";
   return "waiting";
 }
 

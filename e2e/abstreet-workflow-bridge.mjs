@@ -7,7 +7,7 @@ const browser = await chromium.launch({ channel: "msedge" });
 try {
   const page = await browser.newPage({ viewport: { width: 1500, height: 900 } });
   if (candidate) {
-    for (const file of ["game.js", "game_bg.wasm"]) await page.route(`**/wasm_pkg/${file}`, async route => route.fulfill({ body: await readFile(`.next/abstreet-candidate/${file}`), contentType: file.endsWith("wasm") ? "application/wasm" : "text/javascript" }));
+    for (const file of ["game.js", "game_bg.wasm"]) await page.route(`**/wasm_pkg/${file}`, async route => route.fulfill({ body: await readFile(`${process.env.TRAFFIC_PI_CANDIDATE_DIR ?? ".next/abstreet-candidate"}/${file}`), contentType: file.endsWith("wasm") ? "application/wasm" : "text/javascript" }));
   }
   page.on("pageerror", error => console.error("PAGE", error.message));
   await page.goto("http://127.0.0.1:30141/abstreet/abstreet.html?../data/system/cn/chongqing/scenarios/yuzhong_core/weekday.bin&--time=08:00:00");

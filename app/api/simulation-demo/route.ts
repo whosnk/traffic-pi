@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     if (typeof body.sessionId !== "string" || typeof body.toolCallId !== "string") return new Response("Invalid identity", { status: 400 });
     state.cancelled.set(`${body.sessionId}:${body.toolCallId}`, Date.now());
     const command = state.command;
-    if (command?.sessionId && command.sessionId === body.sessionId && command.toolCallId === body.toolCallId) command.finish({ ok: false, error: "检测已中止。" });
+    if (command?.sessionId && command.sessionId === body.sessionId && (command.toolCallId === body.toolCallId || command.params.taskId === body.toolCallId)) command.finish({ ok: false, error: "任务已中止。" });
     return Response.json({ ok: true });
   }
   if (body?.action === "unregister") {
@@ -74,18 +74,20 @@ export async function POST(request: Request) {
     "get_intersection_metrics", "focus_on_road", "highlight_roads", "clear_highlights",
     "run_until", "run_for", "get_signal_plan", "apply_signal_plan", "restore_signal_plan",
     "capture_metrics", "compare_metrics", "detect_congestion",
+    "analyze_congestion_cause", "evaluate_signal_plan", "finalize_signal_trial",
   ];
   if (!actions.includes(body?.action)) return new Response("Unknown action", { status: 400 });
   if (body.params !== undefined && (!body.params || typeof body.params !== "object" || Array.isArray(body.params))) return new Response("Invalid params", { status: 400 });
-  const detection = body.action === "detect_congestion";
+  const detection = ["detect_congestion", "analyze_congestion_cause", "evaluate_signal_plan", "finalize_signal_trial"].includes(body.action);
+  const executionTimeout = body.action === "evaluate_signal_plan" ? 1260000 : body.action === "analyze_congestion_cause" ? 600000 : detection ? 300000 : 60000;
   if (detection && (typeof body.sessionId !== "string" || !body.sessionId || typeof body.toolCallId !== "string" || !body.toolCallId)) return Response.json({ error: "缺少扩展注入的会话和工具调用标识，请重新加载交通 MCP。" }, { status: 400 });
-  if (detection && state.cancelled.has(`${body.sessionId}:${body.toolCallId}`)) return Response.json({ error: "检测已中止，请发起新的工具调用。" }, { status: 409 });
+  if (detection && (state.cancelled.has(`${body.sessionId}:${body.toolCallId}`) || (typeof body.params?.taskId === "string" && state.cancelled.has(`${body.sessionId}:${body.params.taskId}`)))) return Response.json({ error: "任务已中止，请重新分析。" }, { status: 409 });
   const viewers = [...state.viewers].filter(([, info]) => Date.now() - info.seen < viewerTtlMs && (!detection || info.sessionId === body.sessionId));
   if (viewers.length > 1 || (!detection && viewers.length !== 1)) return Response.json({ error: `检测到 ${viewers.length} 个接收窗口。请只保留一个前台仿真工作台，打开后等待接收状态刷新。` }, { status: 409 });
   if (state.command) return Response.json({ error: "已有演示正在启动，请稍后再试。" }, { status: 409 });
   const actionId = typeof body.actionId === "string" && /^[a-zA-Z0-9_-]{1,80}$/.test(body.actionId) ? body.actionId : randomUUID();
   const received = await new Promise<CommandResult>((resolve) => {
-    const timer = setTimeout(() => finish({ ok: false, error: "浏览器执行超时。" }), detection ? 300000 : 60000);
+    const timer = setTimeout(() => finish({ ok: false, error: "浏览器执行超时。" }), executionTimeout);
     const heartbeat = detection ? setInterval(() => {
       const command = state.command;
       if (command?.viewer && Date.now() - (state.viewers.get(command.viewer)?.seen ?? 0) > viewerTtlMs) finish({ ok: false, error: "接收窗口失去连接，检测已中止。" });

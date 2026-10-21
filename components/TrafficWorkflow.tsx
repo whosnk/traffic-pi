@@ -4,23 +4,26 @@ import { useEffect, useRef, useState } from "react";
 import { workflowStepState, type WorkflowTask } from "@/lib/traffic-workflow";
 import styles from "./TrafficWorkflow.module.css";
 
-export function TrafficWorkflow({ task, onStart }: { task: WorkflowTask | null; onStart: () => void }) {
+export function TrafficWorkflow({ task, onStart, onView, onCancel }: { task: WorkflowTask | null; onStart: () => void; onView?: () => void; onCancel?: () => void }) {
   const list = useRef<HTMLOListElement>(null);
   const [now, setNow] = useState(0);
+  const active = !!task && !["completed","failed","cancelled"].includes(task.status);
   useEffect(() => {
-    if (task?.status !== "running") return;
+    if (!active) return;
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, [task?.status]);
+  }, [active,task?.id]);
   useEffect(() => {
     const element = list.current;
     const step = element?.querySelector<HTMLElement>('[aria-current="step"]');
     if (element && step) element.scrollTo({ left: Math.max(0, step.offsetLeft - element.offsetLeft - element.clientWidth / 2 + step.clientWidth / 2), behavior: "instant" });
   }, [task?.stage]);
-  const status = task ? { running: "执行中", completed: "已完成", failed: "执行失败", cancelled: "已取消" }[task.status] : "等待任务";
+  const status = task ? { running: "执行中", completed: "已完成", failed: "执行失败", cancelled: "已取消", awaiting_selection:"等待选择方案", awaiting_decision:"等待保留或恢复", restoring:"正在恢复" }[task.status] : "等待任务";
+  const mitigation = task?.definition.kind === "mitigation";
+  const waiting = task?.status === "awaiting_selection" || task?.status === "awaiting_decision";
   const elapsed = task ? Math.max(0, Math.floor(((task.endedAt ?? Math.max(now, task.startedAt)) - task.startedAt) / 1000)) : 0;
   return <section className={styles.workflow} aria-label="技能执行流程" data-status={task?.status ?? "idle"}>
-    <header><div><small>技能流程</small><strong>{task?.definition.title ?? "等待任务"}</strong></div><span className={styles.status}>{status}{task && ` · ${elapsed}s`}</span><button type="button" disabled={task?.status === "running"} onClick={onStart}>{task ? task.status === "failed" || task.status === "cancelled" ? "重新检测" : "再次检测" : "检测当前拥堵点"}</button></header>
+    <header><div><small>技能流程</small><strong>{task?.definition.title ?? "等待任务"}</strong></div><span className={styles.status}>{status}{task && ` · ${elapsed}s`}</span>{mitigation ? <><button type="button" onClick={onView}>{task?.status === "awaiting_decision" ? "查看对比" : "查看方案"}</button>{(task?.status === "running" || waiting) && <button type="button" onClick={onCancel}>取消任务</button>}{task?.status !== "running" && task?.status !== "restoring" && <button type="button" onClick={onStart}>重新检测</button>}</> : <button type="button" disabled={task?.status === "running"} onClick={onStart}>{task ? task.status === "failed" || task.status === "cancelled" ? "重新检测" : "再次检测" : "检测当前拥堵点"}</button>}</header>
     {task ? <ol ref={list} tabIndex={0} aria-label="执行阶段">{task.definition.steps.map((label, index) => {
       const state = workflowStepState(task, index);
       const time = task.stageTimes?.[index];

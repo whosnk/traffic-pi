@@ -87,10 +87,10 @@ export function createTrafficMcpExtension(cwd: string) {
             parameters: Type.Unsafe<Record<string, unknown>>(tool.inputSchema),
             async execute(_id, args, signal, _onUpdate, ctx) {
               if (!readTrafficServers(cwd).some((s) => s.enabled && JSON.stringify(s) === JSON.stringify(server))) throw new Error("MCP 配置已改变，请重新加载会话。");
-              const detection = tool.name === "detect_congestion";
+              const detection = ["detect_congestion", "analyze_congestion_cause", "evaluate_signal_plan", "finalize_signal_trial"].includes(tool.name);
               const result = await client.callTool({ name: tool.name, arguments: args,
                 ...(detection ? { _meta: { trafficPi: { sessionId: ctx.sessionManager.getSessionId(), toolCallId: _id } } } : {}),
-              }, undefined, { signal, timeout: detection ? 305000 : 60000 });
+              }, undefined, { signal, timeout: tool.name === "evaluate_signal_plan" ? 1270000 : tool.name === "analyze_congestion_cause" ? 610000 : detection ? 305000 : 60000 });
               if (detection && result.isError) throw new Error((result.structuredContent as { error?: string } | undefined)?.error ?? JSON.stringify(result.content));
               return { content: [{ type: "text" as const, text: JSON.stringify(result) }], details: result };
             },
@@ -100,6 +100,6 @@ export function createTrafficMcpExtension(cwd: string) {
         pi.on("session_start", async (_event, ctx) => { ctx.ui.notify(`MCP ${server.name}: ${String(error)}`, "error"); });
       }
     }
-    pi.on("before_agent_start", async (event) => ({ systemPrompt: `${event.systemPrompt}\n你是 Traffic Pi 交通智能体。优先使用已连接的交通 MCP 工具完成仿真任务。检测当前拥堵点时使用 detect_congestion，不重置、推进或调整当前仿真；按返回排名、采集时刻及单位解释瞬时筛选结果。查看第几个拥堵点时用该次结果的 roadId 调用 focus_on_road。报告数据来源、场景和仿真时间；工具不可用时说明缺口，不编造指标或执行结果。` }));
+    pi.on("before_agent_start", async (event) => ({ systemPrompt: `${event.systemPrompt}\n你是 Traffic Pi 交通智能体。优先使用已连接的交通 MCP 工具完成仿真任务。检测当前拥堵点时使用 detect_congestion，不重置、推进或调整当前仿真；按返回排名、采集时刻及单位解释瞬时筛选结果。分析并缓解拥堵、拥堵溯源或提出可验证配时方案时使用 analyze_congestion_cause。候选方案由用户在面板选择后才调用 evaluate_signal_plan，保留或恢复也必须等待面板授权调用 finalize_signal_trial；不得编造 approvalToken，不得用普通配时工具绕过选择。查看第几个拥堵点时用该次结果的 roadId 调用 focus_on_road。报告数据来源、场景和仿真时间；工具不可用时说明缺口，不编造指标或执行结果。` }));
   };
 }

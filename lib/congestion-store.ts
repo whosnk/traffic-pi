@@ -2,6 +2,7 @@ import { useSyncExternalStore } from "react";
 import { congestionSteps } from "./congestion";
 import type { WorkflowTask } from "./traffic-workflow";
 import type { CongestionResult } from "./congestion-executor";
+import { mitigationStore } from "./mitigation-store";
 
 export type DetectionTask = WorkflowTask & { result?: CongestionResult };
 const tasks = new Map<string, DetectionTask>();
@@ -13,6 +14,7 @@ export const congestionStore = {
   start(sessionId: string, id: string, toolName = "detect_congestion") {
     const key = `${sessionId}:${id}`;
     if (seen.has(key)) return false;
+    if (mitigationStore.busy()) return false;
     if ([...tasks.values()].some(task => task.status === "running")) return false;
     seen.add(key);
     const startedAt = Date.now();
