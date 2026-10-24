@@ -441,7 +441,7 @@ export function AbstreetPanel({ open, receiving, sessionId, onViewResults }: { o
             <div className={styles.roadNavigation}><button type="button" disabled={roadIndex <= 0 || task?.status === "running"} onClick={() => { setFollowing(true); void focus(result!.roads[roadIndex - 1].roadId).catch(error => setError(String(error))); }}>← 上一处</button><button type="button" disabled={roadIndex >= result!.roads.length - 1 || task?.status === "running"} onClick={() => { setFollowing(true); void focus(result!.roads[roadIndex + 1].roadId).catch(error => setError(String(error))); }}>下一处 →</button></div>
           </ObjectDetails>}
         </>}
-        {mitigation && <MitigationPanel task={mitigation} targets={mitigation.preset?undefined:result?.roads.map(r=>({roadId:r.roadId,name:r.name}))} onTarget={async roadId=>{
+        {open && mitigation && <MitigationPanel task={mitigation} targets={mitigation.preset?undefined:result?.roads.map(r=>({roadId:r.roadId,name:r.name}))} onTarget={async roadId=>{
           await executor.current?.cancel("已改选目标，旧候选已作废并恢复任务起点。");
           if(!startMitigation(sessionId,roadId))throw new Error("Agent 正忙，请等待回答结束后重新选择目标。");
         }} onClose={()=>sessionId&&mitigationStore.panel(sessionId,false)} onChoose={chooseMitigation} onCancel={cancelMitigation} />}

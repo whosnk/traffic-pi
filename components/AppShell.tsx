@@ -185,11 +185,11 @@ export function AppShell() {
   const [projectTrustError, setProjectTrustError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [trafficWorkspaceOpen, setTrafficWorkspaceOpen] = useState(true);
-  const [trafficView, setTrafficView] = useState<TrafficView>("gis");
+  const [trafficView, setTrafficView] = useState<TrafficView>("abstreet");
   const [trafficSkillsOpen, setTrafficSkillsOpen] = useState(false);
   const closeTrafficSkills = useCallback(() => setTrafficSkillsOpen(false), []);
   const [trafficChatOpen, setTrafficChatOpen] = useState(true);
-  const [trafficResultsOpen, setTrafficResultsOpen] = useState(true);
+  const [trafficResultsOpen, setTrafficResultsOpen] = useState(false);
   useEffect(() => {
     if (trafficWorkspaceOpen && trafficView === "abstreet") setTrafficResultsOpen(false);
   }, [trafficWorkspaceOpen, trafficView]);
@@ -267,7 +267,12 @@ export function AppShell() {
   }, [handleOpenTrafficWorkspace, selectedSession, geoScene]);
   const handleTrafficMode = useCallback((mode: TrafficView | "conversation") => {
     if (mode === "conversation") { setTrafficWorkspaceOpen(false); setRightPanelOpen(false); }
-    else { setTrafficView(mode); handleOpenTrafficWorkspace(); }
+    else {
+      setTrafficView(mode); handleOpenTrafficWorkspace();
+      const narrow = window.matchMedia("(max-width: 960px)").matches;
+      if (narrow) setTrafficChatOpen(false);
+      setTrafficResultsOpen(mode === "gis" && !narrow);
+    }
   }, [handleOpenTrafficWorkspace]);
   const handleSelectTrafficResult = useCallback((result: TrafficResult) => {
     if (!selectedSession) return;
@@ -2102,8 +2107,8 @@ export function AppShell() {
         <span className="traffic-nav-brand">TP</span>
         <button type="button" aria-controls="session-sidebar" aria-expanded={sidebarOpen} onClick={handleSidebarToggle}>会话</button>
         <button type="button" aria-expanded={trafficSkillsOpen} aria-controls="traffic-skills-panel" onClick={() => setTrafficSkillsOpen(current => !current)}>交通技能</button>
-        <small>工作模式</small>
-        {([["conversation", "对话", "◌"], ["gis", "GIS 分析", "▧"], ["abstreet", "A/B Street 仿真", "▷"], ["sumo", "SimTrend 仿真", "◇"]] as const).map(([mode, label, icon]) => <button key={mode} type="button" aria-pressed={mode === "conversation" ? !trafficWorkspaceOpen && !rightPanelOpen : trafficWorkspaceOpen && trafficView === mode} onClick={() => handleTrafficMode(mode)}><span aria-hidden="true">{icon}</span>{label}</button>)}
+        <small>交通任务</small>
+        {([["abstreet", "仿真工作台", "▷"], ["scenarios", "场景管理", "▦"], ["sumo", "仿真实验", "◇"], ["gis", "分析与报告", "▧"]] as const).map(([mode, label, icon]) => <button key={mode} type="button" aria-pressed={trafficWorkspaceOpen && trafficView === mode} onClick={() => handleTrafficMode(mode)}><span aria-hidden="true">{icon}</span>{label}</button>)}
         {trafficWorkspaceOpen && <div className="traffic-mobile-panels"><button type="button" aria-expanded={trafficChatOpen} onClick={toggleTrafficChat}>对话面板</button><button type="button" aria-expanded={trafficResultsOpen} onClick={toggleTrafficResults}>结果面板</button></div>}
         <button type="button" className="traffic-nav-settings" onClick={() => setSettingsSection(getLastSettingsSection(projectTrustCwd))}>设置</button>
         {trafficSkillsOpen && <div id="traffic-skills-panel"><TrafficSkillsPanel sessionId={selectedSession?.id ?? null} onClose={closeTrafficSkills} /></div>}

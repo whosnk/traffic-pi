@@ -66,7 +66,7 @@ html:not(.dark) .traffic-workspace[data-view="abstreet"] { --traffic-tool-accent
 .traffic-workspace-pane .geo-map { min-height: 0; }
 .traffic-workspace-pane .geo-toolbar strong { color: var(--traffic-tool-accent); }
 @media (prefers-reduced-motion: reduce) { .traffic-workspace { transition: none; } }
-.traffic-mode-navigation { position: relative; z-index: 210; flex: 0 0 88px; display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 14px 6px; border-right: 1px solid var(--border); background: var(--bg-panel); }
+.traffic-mode-navigation { position: relative; z-index: 190; flex: 0 0 88px; display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 14px 6px; border-right: 1px solid var(--border); background: var(--bg-panel); }
 .traffic-mode-navigation button { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px 4px; border: 1px solid transparent; border-radius: 9px; color: var(--text-muted); font-size: 11px; cursor: pointer; }
 .traffic-mode-navigation button:hover { background: var(--bg-hover); color: var(--text); }
 .traffic-mode-navigation button[aria-pressed="true"] { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--bg-panel)); }
@@ -149,3 +149,10 @@ html:not(.dark) .traffic-workspace[data-view="abstreet"] { --traffic-tool-accent
 @media (max-width: 800px) { .traffic-task-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .traffic-flow-strip { align-items: flex-start; flex-direction: column; gap: 5px; } .traffic-flow-strip i { display: none; } .traffic-task-grid { grid-template-columns: 1fr; } .traffic-task-grid button { min-height: 84px; } }
 @media (max-height: 720px) { .traffic-network { display: none; } .traffic-welcome-copy { padding: 12px; } }
+
+.traffic-scenarios { overflow-y: auto; padding: 24px; }
+.traffic-scenarios h2 { font-size: 22px; font-weight: 600; margin-bottom: 12px; }
+.traffic-scenarios p { color: var(--text-muted); line-height: 1.8; margin-bottom: 16px; }
+.traffic-scenarios > button { display: block; margin: 12px 0; }
+@media (max-height: 720px) { .traffic-mode-navigation { gap: 3px; padding-top: 6px; overflow-y: auto; } .traffic-mode-navigation button { padding: 7px 3px; } }
+@media (max-width: 560px) { .traffic-workspace-actions { justify-content: flex-start; } .traffic-workspace-actions .traffic-new-count { display: none; } }
