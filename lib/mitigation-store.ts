@@ -17,6 +17,7 @@ const seen = new Set<string>();
 const sources = new Map<string, {roadId:number; result:CongestionResult}>();
 export const mitigationStore = {
   get(id: string | null) { return id ? tasks.get(id) ?? null : null; },
+  switchBlocked() { return this.busy() || [...tasks.values()].some(t => t.status === "failed" && t.message.includes("恢复失败")); },
   takeSource(sessionId: string) { const source=sources.get(sessionId); sources.delete(sessionId); return source; },
   busy() { return [...tasks.values()].some(t => ["running", "awaiting_selection", "awaiting_decision", "restoring"].includes(t.status)); },
   start(sessionId: string, id: string, toolName: string) {

@@ -156,3 +156,13 @@ html:not(.dark) .traffic-workspace[data-view="abstreet"] { --traffic-tool-accent
 .traffic-scenarios > button { display: block; margin: 12px 0; }
 @media (max-height: 720px) { .traffic-mode-navigation { gap: 3px; padding-top: 6px; overflow-y: auto; } .traffic-mode-navigation button { padding: 7px 3px; } }
 @media (max-width: 560px) { .traffic-workspace-actions { justify-content: flex-start; } .traffic-workspace-actions .traffic-new-count { display: none; } }
+
+.traffic-scenario-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); gap: 14px; margin: 14px 0 24px; }
+.traffic-scenario-grid article { border: 1px solid var(--border); border-radius: 10px; padding: 16px; background: var(--bg); }
+.traffic-scenario-grid article[data-current="true"] { border-color: var(--accent); }
+.traffic-scenarios h3 { margin-top: 20px; font-size: 16px; font-weight: 600; }
+.traffic-scenarios h4 { font-size: 16px; font-weight: 600; margin-bottom: 10px; }
+.traffic-scenario-grid dl { font-size: 12px; line-height: 1.8; margin-bottom: 12px; }
+.traffic-scenario-grid dl div { display: flex; flex-wrap: wrap; gap: 10px; }
+.traffic-scenario-grid dt, .traffic-scenario-grid small { color: var(--text-muted); }
+.traffic-scenario-grid button:disabled { opacity: .55; cursor: default; }

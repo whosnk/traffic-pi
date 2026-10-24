@@ -41,6 +41,8 @@ interface Props {
   initialScrollPosition?: ChatScrollPosition | null;
   onScrollPositionChange?: (sessionId: string, position: ChatScrollPosition) => void;
   sessionRunning?: boolean;
+  onBusyChange?: (busy: boolean) => void;
+  simtrendContextEnabled?: boolean;
   newSessionCwd: string | null;
   newSessionDraftKey: string | null;
   onAgentEnd?: () => void;
@@ -245,7 +247,7 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
   );
 }
 
-export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, newSessionCwd, newSessionDraftKey, onAgentEnd, onAttentionNeeded, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile, onOpenSession, onAskInNewChat, quoteSelectionEnabled = false, showMinimap = true, initialPrompt, onInitialPromptConsumed, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, onGeoScene, onToolResult }: Props) {
+export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, onBusyChange, simtrendContextEnabled = true, newSessionCwd, newSessionDraftKey, onAgentEnd, onAttentionNeeded, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile, onOpenSession, onAskInNewChat, quoteSelectionEnabled = false, showMinimap = true, initialPrompt, onInitialPromptConsumed, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, onGeoScene, onToolResult }: Props) {
   const { t } = useI18n();
   const isMobile = useIsMobile();
   const completionNotificationsEnabled = session?.relation?.kind !== "subagent";
@@ -310,6 +312,10 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     }
   }, [messages, onGeoScene, session?.id]);
   const sessionBusy = agentRunning || bashRunning;
+  useEffect(() => {
+    onBusyChange?.(sessionBusy);
+    return () => onBusyChange?.(false);
+  }, [sessionBusy, onBusyChange]);
   useEffect(() => {
     const start = (event: Event) => {
       const detail = (event as CustomEvent<{ sessionId: string | null; handled: boolean }>).detail;
@@ -903,12 +909,12 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
 
   const spatialContextKey = session?.id ?? newSessionDraftKey ?? "simtrend-workspace";
   function contextualize(message: string) {
-    return withSimtrendContext(message, simtrendContextStore.get(spatialContextKey));
+    return withSimtrendContext(message, simtrendContextEnabled ? simtrendContextStore.get(spatialContextKey) : null);
   }
   const chatInputElement = (
     <ChatInput
       ref={chatInputRef}
-      contextHeader={<SimtrendContextTag contextKey={spatialContextKey} />}
+      contextHeader={simtrendContextEnabled ? <SimtrendContextTag contextKey={spatialContextKey} /> : undefined}
       onSend={(message, images) => handleSend(contextualize(message), images)}
       onAbort={handleAbort}
       onSteer={agentRunning ? (message, images) => handleSteer(contextualize(message), images) : undefined}

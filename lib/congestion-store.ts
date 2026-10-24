@@ -11,6 +11,7 @@ const listeners = new Set<() => void>();
 function emit() { for (const listener of listeners) listener(); }
 export const congestionStore = {
   get(sessionId: string | null) { return sessionId ? tasks.get(sessionId) ?? null : null; },
+  busy() { return [...tasks.values()].some(task => task.status === "running"); },
   start(sessionId: string, id: string, toolName = "detect_congestion") {
     const key = `${sessionId}:${id}`;
     if (seen.has(key)) return false;
