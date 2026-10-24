@@ -329,11 +329,11 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   }, [session?.id, sessionBusy, handleSend]);
   useEffect(() => {
     const start = (event: Event) => {
-      const detail = (event as CustomEvent<{sessionId:string|null;roadId?:number;prompt?:string;handled:boolean}>).detail;
+      const detail = (event as CustomEvent<{sessionId:string|null;roadId?:number;prompt?:string;presetScenario?:boolean;handled:boolean}>).detail;
       if (detail.sessionId !== (session?.id ?? null)) return;
       detail.handled=true;
       if (sessionBusy || !detail.prompt && mitigationStore.busy()) event.preventDefault();
-      else void handleSend(detail.prompt ?? `/skill:traffic-mitigation 承接已发现的拥堵，分析并缓解当前拥堵${detail.roadId===undefined?"":`，目标 roadId=${detail.roadId}`}，调用 analyze_congestion_cause 并传 presetScenario:true，展示证据和候选方案等待我选择，随后在页面完成方案验证与决策。`);
+      else void handleSend(detail.prompt ?? `/skill:traffic-mitigation 承接已发现的拥堵，分析并缓解当前拥堵${detail.roadId===undefined?"":`，目标 roadId=${detail.roadId}`}，调用 analyze_congestion_cause 并传 presetScenario:${detail.presetScenario !== false}，${detail.presetScenario === false ? "使用当前 A/B Street 真实控制桥溯源，若不支持则如实报告，不切换为预设模型；等待我选择并授权后再验证" : "使用预设参数推演，明确标注模型来源；展示证据和候选方案等待我选择，随后在页面完成推演与决策"}。`);
     };
     window.addEventListener("traffic-start-mitigation",start);
     return()=>window.removeEventListener("traffic-start-mitigation",start);

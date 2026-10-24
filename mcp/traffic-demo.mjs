@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import * as z from "zod/v4";
 
+const simulationEndpoint = new URL("/api/simulation-demo", process.env.TRAFFIC_PI_BASE_URL || "http://127.0.0.1:30141").href;
 const server = new McpServer({ name: "traffic-demo", version: "2.0.0" });
 const roadIds = z.array(z.number().int().nonnegative()).max(100).optional();
 const intersectionIds = z.array(z.number().int().nonnegative()).max(100).optional();
@@ -10,10 +11,10 @@ async function dispatch(action, params = {}, extra) {
   const actionId = crypto.randomUUID();
   const detection = ["detect_congestion", "analyze_congestion_cause", "evaluate_signal_plan", "finalize_signal_trial"].includes(action);
   const identity = detection ? extra?._meta?.trafficPi : undefined;
-  const cancel = () => { if (identity) void fetch("http://127.0.0.1:30141/api/simulation-demo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "cancel_detection", ...identity }) }).catch(() => {}); };
+  const cancel = () => { if (identity) void fetch(simulationEndpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "cancel_detection", ...identity }) }).catch(() => {}); };
   if (detection) extra?.signal?.addEventListener("abort", cancel, { once: true });
   try {
-    const response = await fetch("http://127.0.0.1:30141/api/simulation-demo", {
+    const response = await fetch(simulationEndpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ actionId, action, params, ...identity }),
@@ -88,7 +89,7 @@ for (const name of ["evaluate_signal_plan", "finalize_signal_trial"]) server.reg
   description: name === "evaluate_signal_plan" ? "仅在用户通过方案面板选定后，按面板提供的 taskId、approvalToken、version 从同起点验证原配时与选定方案。不得自行生成授权标识。" : "仅在用户通过结果面板决定保留或恢复后，提交面板提供的 taskId、approvalToken、version。不得自行选择。",
   inputSchema: { taskId:z.string().min(1), approvalToken:z.string().uuid(), version:z.number().int().positive() },
 }, async(params,extra)=>dispatch(name,params,extra));
-tool("get_road_metrics", "读取道路实时速度、小时流量、排队车辆数和平均累计延误；不传 roadIds 时返回最拥堵道路。", { roadIds });
+tool("get_road_metrics", "读取道路历史行程平均速度（非瞬时测速）、小时流量、排队车辆数和平均累计延误；不传 roadIds 时仅返回接口覆盖的拥堵道路，不代表全路网。", { roadIds });
 tool("get_intersection_metrics", "读取路口小时流量、当前相位、排队车辆数和最近一小时平均延误；不传 intersectionIds 时返回最拥堵信号路口。", { intersectionIds });
 tool("focus_on_road", "把仿真镜头移动到指定内部道路 ID。", { roadId: z.number().int().nonnegative() });
 tool("highlight_roads", "按预警等级在真实仿真画面高亮道路。", { roads: z.array(z.object({ roadId: z.number().int().nonnegative(), level: z.enum(["warning", "severe", "critical"]) })).min(1).max(100) });

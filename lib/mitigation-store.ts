@@ -67,12 +67,12 @@ export const mitigationStore = {
 };
 export function useMitigationTask(sessionId: string | null) { return useSyncExternalStore(mitigationStore.subscribe,()=>mitigationStore.get(sessionId),()=>null); }
 
-export function startMitigation(sessionId: string | null, roadId?: number, prompt?: string, detection?: CongestionResult) {
+export function startMitigation(sessionId: string | null, roadId?: number, prompt?: string, detection?: CongestionResult, presetScenario = true) {
   if (sessionId && !prompt) {
     if (detection && roadId!==undefined && detection.roads.some(road=>road.roadId===roadId)) sources.set(sessionId,{roadId,result:structuredClone(detection)});
     else sources.delete(sessionId);
   }
-  const detail = {sessionId,roadId,prompt,handled:false};
+  const detail = {sessionId,roadId,prompt,presetScenario,handled:false};
   const accepted=window.dispatchEvent(new CustomEvent("traffic-start-mitigation",{detail,cancelable:true})) && detail.handled;
   if (!accepted && sessionId && !prompt) sources.delete(sessionId);
   return accepted;

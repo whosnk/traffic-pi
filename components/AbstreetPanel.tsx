@@ -310,7 +310,7 @@ export function AbstreetPanel({ open, receiving, sessionId, onViewResults }: { o
           if (!state.capabilities?.includes("traffic-pi-ui-v1")) throw new Error("当前仿真包尚未提供新版地图交互接口，请更新仿真包后重新打开。");
         }
         const linkedSource = command.action === "analyze_congestion_cause" ? mitigationStore.takeSource(sessionId!) : undefined;
-        result = command.action === "analyze_congestion_cause" && (command.params.presetScenario === true || !!linkedSource)
+        result = command.action === "analyze_congestion_cause" && (command.params.presetScenario === true || command.params.presetScenario !== false && !!linkedSource)
           ? await scenario.current!.start(sessionId!, linkedSource?.roadId ?? command.params.roadId as number|undefined, command.toolCallId!, signal,
               linkedSource?.result ?? congestionStore.get(sessionId)?.result)
           : mitigationCommand ? await executor.current!.execute(command.action,command.params,sessionId!,command.toolCallId!,signal) : detection ? await executeCongestion(request, (stage, text) => {
@@ -323,6 +323,7 @@ export function AbstreetPanel({ open, receiving, sessionId, onViewResults }: { o
           try { const focused = await camera.current(roadIds, signal); congestionStore.recordCall(sessionId!, command.toolCallId!, "地图范围与道路聚焦", startedAt, Date.now()); return focused; }
           catch (error) { congestionStore.recordCall(sessionId!, command.toolCallId!, "地图范围与道路聚焦", startedAt, Date.now(), String(error)); throw error; }
         } }) : await request(command.action, command.params);
+        if (linkedSource && command.params.presetScenario === false && sessionId) mitigationStore.update(sessionId, command.toolCallId!, { sourceDetection: linkedSource.result });
         if (!detection && command.action === "focus_on_road") { setSelectedRoad(command.params.roadId as number); setFollowing(true); }
         signal.throwIfAborted();
         setError(""); ok = true;
@@ -404,7 +405,7 @@ export function AbstreetPanel({ open, receiving, sessionId, onViewResults }: { o
     observer.observe(element);
     return () => observer.disconnect();
   }, [nativeUi]);
-  if (open && !started) setStarted(true);
+  useEffect(() => { if (open) setStarted(true); }, [open]);
 
   return <>
     <section inert={!open} aria-hidden={!open} className={styles.workspace} aria-label="交通仿真工作台">
@@ -416,13 +417,13 @@ export function AbstreetPanel({ open, receiving, sessionId, onViewResults }: { o
         {!nativeUi && <>
           <div ref={hud} className={styles.mapHud}>
           <section className={styles.sceneControls} aria-label="场景与时间控制">
-            <small>本地仿真实例</small><strong>重庆 · 渝中半岛</strong>
+            <small>A/B Street · 合成交通 · 种子 42</small><strong>重庆 · 渝中半岛</strong>
             <div className={styles.clock}><time>{simulation ? new Date(simulation.simulationTime * 1000).toISOString().slice(11, 19) : "--:--:--"}</time><span>{simulation ? simulation.paused ? "已暂停" : "运行中" : "场景加载中"}</span></div>
             <div className={styles.controlRow}><button type="button" disabled={!bridgeReady || controlBusy || mitigationBusy} onClick={() => void control(simulation?.paused ? "resume" : "pause")}>{simulation?.paused ? "▶ 继续" : "Ⅱ 暂停"}</button>
               <label>速度<select aria-label="仿真速度" disabled={!bridgeReady || controlBusy || mitigationBusy} value={simulation?.speedMultiplier ?? 1} onChange={event => void control("set_speed", { speedMultiplier: Number(event.target.value) })}>{[1,5,30,3600].map(speed => <option key={speed} value={speed}>{speed}×</option>)}</select></label></div>
             <small>{bridgeReady ? "控制已就绪" : "等待仿真接口就绪"}</small>
           </section>
-          <TrafficWorkflow task={latestTask} onStart={startAnalysis} onView={()=>sessionId && mitigationStore.panel(sessionId,true)} onCancel={cancelMitigation} />
+          <TrafficWorkflow task={latestTask} onStart={startAnalysis} onView={()=>sessionId && mitigationStore.panel(sessionId,true)} onCancel={latestTask === mitigation ? cancelMitigation : () => { if (sessionId) congestionStore.cancel(sessionId, "用户已取消检测。"); }} />
           <section className={styles.overview} aria-label="当前任务概览"><small>当前任务概览</small>{latestTask===mitigation && mitigation ? <><strong>{mitigation.round??"拥堵溯源与配时"}</strong><span>目标道路 {mitigation.targetRoadId??"待确定"} · 路口 {mitigation.context?.intersectionId??"待确定"}</span><span>{mitigation.message}</span>{mitigation.observations.at(-1) && <span>{mitigation.preset?"模型排队":"当前排队"} {mitigation.observations.at(-1)?.approaches.find(a=>a.roadId===mitigation.targetRoadId)?.queueVehicles??"未提供"} 辆 · {mitigation.preset?"模型时刻":"仿真"} {mitigation.observations.at(-1)!.simulationTime.toFixed(0)}s</span>}<button type="button" onClick={()=>sessionId&&mitigationStore.panel(sessionId,true)}>查看溯源与方案</button><button type="button" disabled={!mitigation.targetRoadId} onClick={()=>{taskAutoFollow.current=true;setFollowing(true);void focus(mitigation.targetRoadId!).catch(error=>setError(String(error)));}}>定位目标道路</button></> : <><strong>{result ? `${result.roads.length} 处疑似拥堵` : task?.status === "running" ? "正在采集与分析" : "暂无检测结果"}</strong>
             {result ? <><span>道路 {roadIndex >= 0 ? roadIndex + 1 : "—"} / {result.roads.length} · 样本 {result.sampledRoadCount} 条</span><small>采集于 {new Date(result.metricsCollectedAt).toLocaleTimeString()}</small>{viewResult && viewResult.metricsCollectedAt !== task?.result?.metricsCollectedAt && <button type="button" onClick={() => { setViewResult(null); setSelectedRoad(null); }}>历史检测 · 返回最新</button>}{!result.roads.length && <span>当前未发现符合筛选条件的道路</span>}{result.roads.length > 0 && <button type="button" onClick={() => { setFollowing(true); void focus(road?.roadId ?? result.roads[0].roadId).catch(error => setError(String(error))); }}>定位当前道路</button>}</> : <span>通过对话或技能卡片开始分析</span>}
             {result && <div className={styles.overviewActions}><button type="button" onClick={onViewResults}>查看分析结果</button></div>}</>}
@@ -436,8 +437,10 @@ export function AbstreetPanel({ open, receiving, sessionId, onViewResults }: { o
           </ObjectDetails> : road && anchor && <ObjectDetails label="道路详情" title={road.name && road.name !== "???" ? road.name : `道路 ${road.roadId}`} subtitle={`道路 ${road.roadId} · ${roadIndex + 1} / ${result!.roads.length}`} anchor={{ x: anchor.x * size.width, y: anchor.y * size.height }} bounds={size} safeTop={safeTop} onClose={() => setSelectedRoad(null)}>
             <span className={styles.severity} data-level={road.level}>{road.level === "critical" ? "红色" : road.level === "severe" ? "橙色" : "黄色"} · 疑似拥堵</span>
             <dl><div><dt>排队车辆</dt><dd>{road.queueVehicles} 辆</dd></div><div><dt>平均车速</dt><dd>{road.meanVehicleSpeedKph.toFixed(1)} km/h</dd></div><div><dt>平均累计延误</dt><dd>{Number.isFinite(road.meanVehicleDelaySeconds) ? `${road.meanVehicleDelaySeconds!.toFixed(1)} 秒` : "未提供"}</dd></div><div><dt>车辆流量</dt><dd>{Number.isFinite((road as {flowVehiclesPerHour?: number}).flowVehiclesPerHour) ? `${(road as {flowVehiclesPerHour?: number}).flowVehiclesPerHour} 辆/小时` : "未提供"}</dd></div></dl>
-            <small>采集于 {new Date(result!.metricsCollectedAt).toLocaleTimeString()} · 采集结果</small>
+            <small>采集于 {new Date(result!.metricsCollectedAt).toLocaleTimeString()} · 历史行程平均车速，非瞬时测速 · 接口样本 {result!.sampledRoadCount} 条道路</small>
             <button type="button" disabled={mitigationBusy || task?.status==="running"} onClick={()=>{if(!startMitigation(sessionId,road.roadId,undefined,result))setError("Agent 正忙，请等待当前任务结束后重试。");}}>分析缓解方案</button>
+            <small>快捷方案使用预设参数推演，不修改 A/B Street 配时。</small>
+            <button type="button" disabled={mitigationBusy || task?.status==="running"} onClick={()=>{if(!startMitigation(sessionId,road.roadId,undefined,result,false))setError("Agent 正忙，请等待当前任务结束后重试。");}}>真实 A/B Street 溯源</button>
             <div className={styles.roadNavigation}><button type="button" disabled={roadIndex <= 0 || task?.status === "running"} onClick={() => { setFollowing(true); void focus(result!.roads[roadIndex - 1].roadId).catch(error => setError(String(error))); }}>← 上一处</button><button type="button" disabled={roadIndex >= result!.roads.length - 1 || task?.status === "running"} onClick={() => { setFollowing(true); void focus(result!.roads[roadIndex + 1].roadId).catch(error => setError(String(error))); }}>下一处 →</button></div>
           </ObjectDetails>}
         </>}

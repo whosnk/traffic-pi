@@ -25,7 +25,7 @@
 .traffic-chat-column { transition: flex-grow 220ms ease, flex-basis 220ms ease; }
 .traffic-workspace-layout > .traffic-chat-column { flex: 0 0 clamp(290px, 24vw, 360px) !important; border-right: 1px solid var(--border); }
 .traffic-workspace-layout { position: relative; }
-.traffic-workspace-layout[data-chat-open="false"] > .traffic-chat-column { position: absolute; top: 0; bottom: 0; left: 88px; width: clamp(290px, 24vw, 360px); visibility: hidden; pointer-events: none; }
+.traffic-workspace-layout[data-chat-open="false"] > .traffic-chat-column { position: absolute; top: 0; bottom: 0; left: 88px; width: clamp(290px, 24vw, 360px); visibility: hidden; pointer-events: none; clip-path: inset(50%); }
 @media (prefers-reduced-motion: reduce) { .traffic-chat-column { transition: none; } }
 .traffic-chat-heading { display: flex; flex-shrink: 0; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
 .traffic-chat-heading > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -116,6 +116,8 @@ html:not(.dark) .traffic-workspace[data-view="abstreet"] { --traffic-tool-accent
 .traffic-result-detail th, .traffic-result-detail td { border-bottom: 1px solid var(--border); padding: 4px; vertical-align: top; text-align: left; }
 .traffic-result-detail th { font-weight: 400; color: var(--text-muted); }
 .traffic-result-detail p { margin-bottom: 6px; }
+.traffic-congestion-road { display: grid; gap: 7px; padding: 12px 0; border-top: 1px solid var(--border); }
+.traffic-congestion-road > button { text-align: left; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; }
 .traffic-sumo-placeholder { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; gap: 16px; padding: 24px; text-align: center; }
 .traffic-sumo-placeholder small { color: var(--accent); letter-spacing: .2em; }
 .traffic-sumo-placeholder h2 { font-size: 24px; }

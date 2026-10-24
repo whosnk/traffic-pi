@@ -42,7 +42,7 @@ export function TrafficResultsPanel({ results, expandedId, onSelect, onClose, on
       {results.map(result => <article key={result.id} className="traffic-result-card" data-selected={expandedId === result.id}>
         <button type="button" onClick={() => onSelect(result)} aria-expanded={expandedId === result.id}>
           <strong>{result.title}</strong>{result.unread && <span className="traffic-result-badge">新结果</span>}
-          <small>{new Date(result.receivedAt).toLocaleTimeString()} · {(result.data as Record<string,unknown>).preset === true ? "场景推演" : result.type === "publish_geo_scene" ? "GIS" : result.type === "simtrend_draft" ? "任务草案" : "本地仿真"}</small>
+          <small>{new Date(result.receivedAt).toLocaleTimeString()} · {(result.data as Record<string,unknown>).preset === true ? "预设参数推演 · 非真实验证" : result.type === "publish_geo_scene" ? "GIS 空间分析" : result.type === "simtrend_draft" ? "SUMO 任务草案" : result.type === "simtrend" ? "SUMO 实验结果" : "A/B Street · 重庆渝中半岛"}</small>
         </button>
         <code>来源：{result.toolName}</code>
         {expandedId === result.id && result.type === "simtrend" && <SimtrendResult result={result.data as SimtrendResultData} />}
@@ -50,10 +50,12 @@ export function TrafficResultsPanel({ results, expandedId, onSelect, onClose, on
         {expandedId===result.id && ["analyze_congestion_cause","evaluate_signal_plan","finalize_signal_trial"].includes(result.type) && <MitigationResult result={result} sessionId={sessionId}/>}
         {expandedId === result.id && result.type === "detect_congestion" && <div className="traffic-result-detail">
           <p>{String((result.data as Record<string, unknown>).message)}</p><p>场景：{String(((result.data as Record<string, unknown>).state as Record<string, unknown>)?.scene ?? "未提供")}<br />采集时间：{String((result.data as Record<string, unknown>).metricsCollectedAt ?? "未提供")}<br />仿真时间：{String(result.simulationTime ?? "未提供")}</p>
-          {((result.data as Record<string, unknown>).roads as CongestedRoad[]).map((road, index) => <div key={road.roadId}>
+          {((result.data as Record<string, unknown>).roads as CongestedRoad[]).map((road, index) => <div key={road.roadId} className="traffic-congestion-road">
             <button type="button" onClick={() => onFocusRoad?.(road.roadId, result.data as CongestionResult)}>{index + 1}. {road.name && road.name !== "???" ? road.name : `道路 ${road.roadId}`} · 定位</button>
             <button type="button" disabled={!sessionId || mitigationStore.busy()} onClick={()=>startMitigation(sessionId??null,road.roadId,undefined,result.data as CongestionResult)}>分析缓解方案</button>
-            <p>排队 {road.queueVehicles} 辆 · 平均车速 {road.meanVehicleSpeedKph.toFixed(1)} km/h<br />平均累计延误：{Number.isFinite(road.meanVehicleDelaySeconds) ? `${road.meanVehicleDelaySeconds!.toFixed(1)} 秒` : "未提供"}</p>
+            <small>预设参数推演；不修改 A/B Street 配时。</small>
+            <button type="button" disabled={!sessionId || mitigationStore.busy()} onClick={()=>startMitigation(sessionId??null,road.roadId,undefined,result.data as CongestionResult,false)}>真实 A/B Street 溯源</button>
+            <p>道路 ID {road.roadId} · 排队 {road.queueVehicles} 辆 · 历史平均车速 {road.meanVehicleSpeedKph.toFixed(1)} km/h<br />平均累计延误：{Number.isFinite(road.meanVehicleDelaySeconds) ? `${road.meanVehicleDelaySeconds!.toFixed(1)} 秒` : "未提供"}</p>
           </div>)}
           <small>{String((result.data as Record<string, unknown>).rule)} {String((result.data as Record<string, unknown>).samplingNote)}</small>
         </div>}

@@ -54,7 +54,10 @@ try {
     assert.equal(await page.locator(".traffic-results-column").isVisible(), false);
     assert.equal(await page.locator(".traffic-workspace-views").count(), 0);
     for (const label of ["仿真工作台", "场景管理", "仿真实验", "分析与报告", "设置"]) {
-      assert.equal(await nav.getByRole("button", { name: label, exact: true }).isVisible(), true);
+      const entry = nav.getByRole("button", { name: label, exact: true });
+      assert.equal(await entry.isVisible(), true);
+      const box = await entry.boundingBox();
+      assert.ok(box.y >= 0 && box.y + box.height <= 900, label + "入口必须位于视口内");
     }
     if (width < 960) await workspace.getByRole("button", { name: "对话", exact: true }).click();
     await page.locator(".chat-input-textarea").fill("保留导航草稿");

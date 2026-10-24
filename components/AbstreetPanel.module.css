@@ -40,6 +40,7 @@
 .objectDetails { position: absolute; pointer-events: auto; padding: 12px; overflow-y: auto; }
 .objectDetails header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
 .objectDetails header strong { display: block; font-size: 14px; margin-top: 4px; }
+.objectDetails > :is(small,button) { display: block; margin-top: 7px; }
 .objectDetails header button { color: var(--sim-muted); font-size: 20px; line-height: 1; }
 .objectDetails dl { margin: 10px 0; }
 .objectDetails dl > div { display: flex; justify-content: space-between; gap: 6px; margin: 7px 0; font-size: 11px; }

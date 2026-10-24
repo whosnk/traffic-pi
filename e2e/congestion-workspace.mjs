@@ -11,9 +11,10 @@ const client = new Client({ name: "congestion-workspace-check", version: "1" });
 const realBridge = process.env.TRAFFIC_PI_REAL_BRIDGE === "1";
 const browser = await chromium.launch({ channel: "msedge" });
 try {
-  await client.connect(new StdioClientTransport({ command: process.execPath, args: [resolve("mcp/traffic-demo.mjs")] }));
+  await client.connect(new StdioClientTransport({ command: process.execPath, args: [resolve("mcp/traffic-demo.mjs")], env: { ...process.env, TRAFFIC_PI_BASE_URL: process.env.TRAFFIC_PI_BASE_URL || "http://127.0.0.1:30141" } }));
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const pageErrors = [];
+  page.on("dialog", dialog => dialog.accept());
   page.on("pageerror", error => pageErrors.push(error.message));
   const cwd = process.cwd();
   const sessions = ["a", "b", "empty"].map(id => ({
@@ -72,7 +73,7 @@ try {
       const messages = history.get(id);
       json = { info: sessions.find(s => s.id === id), sessionId: id, filePath: "", totalActiveMs: 0, tree: [], leafId: null,
         context: { messages, entryIds: messages.map((_, i) => `entry-${i}`), oldestEntryId: null, hasMore: false, thinkingLevel: "off", model: null } };
-    } else if (path.endsWith("/state")) json = { running: path.includes(primarySession), state: { isStreaming: path.includes(primarySession), isPromptRunning: false } };
+    } else if (path.endsWith("/state")) json = { running: path.includes(primarySession), state: { isStreaming: path.includes(primarySession), isPromptRunning: realBridge && path.includes(primarySession) } };
     else if (path === "/api/models") json = { models: {}, modelList: [] };
     else if (path === "/api/project-trust") json = { trusted: true, cwd };
     else if (path === "/api/worktrees") json = { projectRoot: cwd, projectKey: cwd, worktrees: [], isGit: false };
@@ -83,15 +84,15 @@ try {
       if (command.type === "prompt") { prompts++; lastPrompt = command.message; }
       json = { success: true, data: ["get_tools", "get_commands"].includes(command.type) ? [] : {} };
     }
-    else if (path.startsWith(`/api/agent/${sessionTag}-`)) json = { state: { isStreaming: path.includes(primarySession), isPromptRunning: false }, tools: [], activeTools: [], commands: [] };
+    else if (path.startsWith(`/api/agent/${sessionTag}-`)) json = { running: realBridge && path.includes(primarySession), state: { isStreaming: path.includes(primarySession), isPromptRunning: realBridge && path.includes(primarySession) }, tools: [], activeTools: [], commands: [] };
     return route.fulfill({ json });
   });
-  await page.goto(`http://127.0.0.1:30141/?session=${primarySession}`);
+  await page.goto(`${process.env.TRAFFIC_PI_BASE_URL || "http://127.0.0.1:30141"}/?session=${primarySession}`);
   const workspace = page.getByRole("region", { name: "交通工作区", exact: true });
   await workspace.waitFor();
   await page.locator(".chat-input-textarea").waitFor();
-  await page.locator(".geo-map canvas").waitFor();
-  assert.equal(simulationLoads, 0);
+  await page.frameLocator('iframe[title="本地交通仿真"]').locator("canvas").waitFor({timeout:180000});
+  assert.equal(simulationLoads, 1);
 
   await page.waitForFunction(sid => window.__trafficStreams.some(source => source.url.includes(`/api/agent/${sid}/events`) && source.readyState === 1), primarySession);
   const emit = event => page.evaluate(({sid, event}) => window.__publishTrafficEvent(sid, event), {sid: primarySession, event});
@@ -168,7 +169,7 @@ try {
   result = await begin("repeat-detection"); await end("repeat-detection", result);
   assert.equal(result.isError, false, JSON.stringify(result));
   assert.equal(await workspace.getByRole("button", { name: /^分析结果/ }).getAttribute("aria-expanded"), "true", "New results must preserve an explicitly opened results panel");
-  await page.getByRole("navigation", { name: "工作模式" }).getByRole("button", { name: "对话", exact: true }).click();
+  await workspace.getByRole("button", { name: "收起交通工作区", exact: true }).click();
   await frame.evaluate(() => { window.roads=[{roadId:37,queueVehicles:0,meanVehicleSpeedKph:20}];window.calls=[]; });
   result = await begin("empty-detection"); await end("empty-detection", result);
   assert.equal(result.isError, false, JSON.stringify(result));
@@ -207,15 +208,20 @@ try {
   await page.waitForTimeout(300);
   await page.getByRole("navigation", { name: "工作模式" }).getByRole("button", { name: "会话", exact: true }).click();
   await page.locator(".sidebar-container").getByText("工作区测试 b", { exact: true }).click();
+  assert.ok(page.url().includes(primarySession), "活动检测阻止切换会话");
+  await page.getByRole("navigation", { name: "工作模式" }).getByRole("button", { name: "会话", exact: true }).click();
+  await task.getByRole("button", { name: "取消检测", exact: true }).click();
   assert.equal((await cancelled).isError, true);
+  await page.getByRole("navigation", { name: "工作模式" }).getByRole("button", { name: "会话", exact: true }).click();
+  await page.locator(".sidebar-container").getByText("工作区测试 b", { exact: true }).click();
   assert.equal(await page.locator(".traffic-result-card").count(), 0);
   await page.getByRole("navigation", { name: "工作模式" }).getByRole("button", { name: "会话", exact: true }).click();
   await page.locator(".sidebar-container").getByText("工作区测试 a", { exact: true }).click();
-  await page.getByRole("navigation", { name: "工作模式" }).getByRole("button", { name: "A/B Street 仿真", exact: true }).click();
+  await page.getByRole("navigation", { name: "工作模式" }).getByRole("button", { name: "仿真工作台", exact: true }).click();
   await task.getByRole("button", { name: "重新检测" }).waitFor();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.getByRole("navigation", { name: "工作模式" }).getByRole("button", { name: "A/B Street 仿真", exact: true }).click();
+  await page.getByRole("navigation", { name: "工作模式" }).getByRole("button", { name: "仿真工作台", exact: true }).click();
   await page.getByRole("list", { name: "执行阶段", exact: true }).focus();
   await page.keyboard.press("ArrowRight");
   await page.waitForTimeout(350);
@@ -233,7 +239,7 @@ try {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.getByRole("navigation", { name: "工作模式" }).getByRole("button", { name: "会话", exact: true }).click();
   await page.locator(".sidebar-container").getByText("工作区测试 b", { exact: true }).click();
-  await page.getByRole("navigation", { name: "工作模式" }).getByRole("button", { name: "对话", exact: true }).click();
+  await workspace.getByRole("button", { name: "收起交通工作区", exact: true }).click();
   await page.locator(".chat-input-textarea").fill("技能调用保留草稿");
   const beforeSkill = prompts;
   await page.getByRole("button", { name: "交通技能", exact: true }).click();
@@ -244,7 +250,7 @@ try {
   assert.equal(await page.locator(".chat-input-textarea").inputValue(), "技能调用保留草稿");
   await page.reload();
   assert.equal(await page.locator(".traffic-result-card").count(), 0);
-  assert.equal(await page.locator('iframe[title="本地交通仿真"]').count(), 0);
+  await page.frameLocator('iframe[title="本地交通仿真"]').locator("canvas").waitFor();
   console.log("PASS: real MCP/session routing, GIS/conversation/file auto-open, real step updates, result focus, no-match clearing, failures, retry, cancellation, drafts, lazy iframe, mobile/reduced motion, refresh");
   }
   assert.deepEqual(pageErrors, []);

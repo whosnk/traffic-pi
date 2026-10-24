@@ -194,9 +194,6 @@ export function AppShell() {
   const [trafficChatOpen, setTrafficChatOpen] = useState(true);
   const [trafficResultsOpen, setTrafficResultsOpen] = useState(false);
   useEffect(() => {
-    if (trafficWorkspaceOpen && trafficView === "abstreet") setTrafficResultsOpen(false);
-  }, [trafficWorkspaceOpen, trafficView]);
-  useEffect(() => {
     const narrow = window.matchMedia("(max-width: 960px)");
     const collapse = () => { if (narrow.matches) { setTrafficChatOpen(false); setTrafficResultsOpen(false); } };
     collapse();
@@ -259,6 +256,7 @@ export function AppShell() {
   }, [detection, handleOpenTrafficWorkspace]);
   const handleViewGeoResult = useCallback(() => {
     handleOpenTrafficWorkspace();
+    setTrafficResultsOpen(true);
     setTrafficView("gis");
     if (selectedSession && geoScene) {
       trafficResultStore.latest(selectedSession.id);
@@ -268,19 +266,20 @@ export function AppShell() {
       geoSceneStore.markSeen(selectedSession.id, geoScene.revision);
     }
   }, [handleOpenTrafficWorkspace, selectedSession, geoScene]);
-  const handleTrafficMode = useCallback((mode: TrafficView | "conversation") => {
+  const handleTrafficMode = useCallback((mode: TrafficView | "conversation", preserveResults = false) => {
     if (mode === "conversation") { setTrafficWorkspaceOpen(false); setRightPanelOpen(false); }
     else {
       if ((mode === "abstreet" || mode === "sumo") && mode !== trafficScenarioEngine) {
         const reason = scenarioSwitchReason({ mitigationBusy: mitigationStore.switchBlocked(), detectionBusy: congestionStore.busy(), agentBusy: trafficAgentBusy || !!selectedSession && runningSessionIds.has(selectedSession.id) });
-        if (reason) { window.alert(reason); return; }
+        if (reason) { window.alert(reason); return false; }
       }
       if (mode === "abstreet" || mode === "sumo") setTrafficScenarioEngine(mode);
       setTrafficView(mode); handleOpenTrafficWorkspace();
       const narrow = window.matchMedia("(max-width: 960px)").matches;
       if (narrow) setTrafficChatOpen(false);
-      setTrafficResultsOpen(mode === "gis" && !narrow);
+      if (!preserveResults || narrow) setTrafficResultsOpen(mode === "gis" && !narrow);
     }
+    return true;
   }, [handleOpenTrafficWorkspace, trafficScenarioEngine, trafficAgentBusy, selectedSession, runningSessionIds]);
   const handleSelectTrafficResult = useCallback((result: TrafficResult) => {
     if (!selectedSession) return;
@@ -292,7 +291,7 @@ export function AppShell() {
     }
   }, [selectedSession, handleTrafficMode]);
   const handleFocusCongestionRoad = useCallback((roadId: number, result: CongestionResult) => {
-    handleTrafficMode("abstreet");
+    if (!handleTrafficMode("abstreet", true)) return;
     window.dispatchEvent(new CustomEvent("traffic-focus-road", { detail: { sessionId: selectedSession?.id, roadId, result } }));
   }, [handleTrafficMode, selectedSession?.id]);
   const toggleTrafficChat = () => {
