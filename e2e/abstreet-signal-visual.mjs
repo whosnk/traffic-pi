@@ -1,0 +1,42 @@
+import assert from "node:assert/strict";
+import { chromium } from "playwright";
+
+const browser = await chromium.launch({ channel: "msedge" });
+try {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  const errors=[];
+  page.on("pageerror",error=>errors.push(error.message));
+  await page.goto("http://127.0.0.1:30141/abstreet/abstreet.html?../data/system/cn/chongqing/scenarios/yuzhong_core/weekday.bin&--time=08:00:00");
+  await page.waitForFunction(()=>window.trafficPi?.ready,null,{timeout:180000});
+  const request=(action,params={})=>page.evaluate(({action,params})=>window.trafficPi.request(action,params),{action,params});
+  const state=await request("get_simulation_state");
+  assert.ok(state.capabilities.includes("traffic-pi-signal-visual-v1"));
+  const {intersections}=await request("get_intersection_metrics");
+  const plans=[];
+  for(const {intersectionId} of intersections.slice(0,60))plans.push(await request("get_signal_plan",{intersectionId}));
+  const plan=plans.sort((a,b)=>new Set(b.stages.flatMap(s=>s.movements.filter(m=>!m.crosswalk).map(m=>m.fromRoadId))).size-new Set(a.stages.flatMap(s=>s.movements.filter(m=>!m.crosswalk).map(m=>m.fromRoadId))).size)[0];
+  const intersectionId=plan.intersectionId,leaseId="isolated-signal-visual";
+  await request("set_native_ui",{enabled:false});
+  await request("focus_on_intersection",{intersectionId,zoom:9,smooth:false});
+  await request("mitigation_begin",{leaseId});
+  const call=(action,params={})=>request(action,{...params,leaseId});
+  await call("set_signal_visualization",{enabled:true,intersectionId});
+  await page.screenshot({path:".next/signal-visual/actual-intersection.png"});
+  const before=await request("get_signal_plan",{intersectionId});
+  await call("set_signal_visualization",{enabled:true,intersectionId,previewStage:(before.currentStage+1)%before.stages.length});
+  const preview=await request("get_signal_plan",{intersectionId});
+  assert.deepEqual(preview,before,"Outline preview never modifies engine phase or simulation time");
+  await request("zoom_view",{factor:1.2});
+  assert.equal((await request("get_simulation_state")).simulationTime,state.simulationTime);
+  await page.screenshot({path:".next/signal-visual/actual-intersection-preview.png"});
+  await call("set_signal_visualization",{enabled:true,intersectionId});
+  await call("run_for",{durationSeconds:before.stageRemainingSeconds+2});
+  const next=await request("get_signal_plan",{intersectionId});
+  assert.notEqual(next.currentStage,before.currentStage,"Live engine phase must advance");
+  await page.screenshot({path:".next/signal-visual/actual-intersection-next-phase.png"});
+  await call("mitigation_cancel");
+  assert.equal((await request("get_simulation_state")).simulationTime,state.simulationTime);
+  assert.deepEqual(await request("get_signal_plan",{intersectionId}),before);
+  assert.deepEqual(errors,[]);
+  console.log("PASS real movement overlay, phase transition, preview isolation, zoom invariance and checkpoint restore",{intersectionId,from:before.currentStage,to:next.currentStage});
+}finally{await browser.close();}

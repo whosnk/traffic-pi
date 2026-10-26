@@ -23,9 +23,22 @@
 .traffic-skill-tools span { padding: 3px 5px; border-radius: 4px; background: var(--bg-subtle); color: var(--text-dim); font-family: var(--font-mono); font-size: 9px; }
 .traffic-navigation button { flex: none !important; justify-content: flex-start !important; padding-left: 12px !important; }
 .traffic-chat-column { transition: flex-grow 220ms ease, flex-basis 220ms ease; }
-.traffic-workspace-layout > .traffic-chat-column { flex: 0 0 clamp(290px, 24vw, 360px) !important; border-right: 1px solid var(--border); }
+.traffic-workspace-layout > .traffic-chat-column { flex: 0 0 clamp(350px, 25vw, 380px) !important; border-right: 1px solid var(--border); }
 .traffic-workspace-layout { position: relative; }
-.traffic-workspace-layout[data-chat-open="false"] > .traffic-chat-column { position: absolute; top: 0; bottom: 0; left: 88px; width: clamp(290px, 24vw, 360px); visibility: hidden; pointer-events: none; clip-path: inset(50%); }
+.traffic-workspace-layout[data-chat-open="false"] > .traffic-chat-column { position: absolute; top: 0; bottom: 0; left: 88px; width: clamp(350px, 25vw, 380px); visibility: hidden; pointer-events: none; clip-path: inset(50%); }
+html.dark .traffic-workspace-layout { --bg: #15191e; --bg-panel: #20262d; --bg-hover: #29323b; --bg-selected: #2a3b3b; --bg-subtle: #ffffff04; --border: #3b495480; --text: #edf2f3; --text-muted: #adbac3; --text-dim: #8e9da7; --accent: #57ceb7; --assistant-bg: #15191e; }
+.traffic-chat-column .markdown-body { font-size: 14px; line-height: 1.6; }
+.traffic-chat-column .markdown-body p { margin-bottom: 12px; }
+.traffic-chat-column .markdown-body p:last-child { margin-bottom: 0; }
+.traffic-chat-column .markdown-body :is(h1,h2,h3,h4,h5,h6) { margin-top: 18px; margin-bottom: 8px; line-height: 1.5; }
+.traffic-chat-column .markdown-body :is(ul,ol) { margin-top: 10px; margin-bottom: 12px; }
+.traffic-chat-column .markdown-body li { margin: 7px 0; }
+.traffic-chat-column .markdown-body li > p { margin: 0; }
+.traffic-chat-column .markdown-table-wrap { max-width: 100%; margin: 12px 0; scrollbar-width: thin; }
+.traffic-chat-column .markdown-body :is(th,td) { padding: 8px 11px; }
+.traffic-chat-column .markdown-body .markdown-inline-code { background: color-mix(in srgb, var(--text-muted) 9%, transparent); border-color: var(--border); }
+.traffic-chat-column .markdown-code-block { margin: 14px 0; border-color: var(--border); box-shadow: none; }
+.traffic-chat-column .markdown-code-header { background: var(--bg-panel); }
 @media (prefers-reduced-motion: reduce) { .traffic-chat-column { transition: none; } }
 .traffic-chat-heading { display: flex; flex-shrink: 0; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
 .traffic-chat-heading > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -103,6 +116,12 @@ html:not(.dark) .traffic-workspace[data-view="abstreet"] { --traffic-tool-accent
 .traffic-results button { cursor: pointer; }
 .traffic-results header button { font-size: 11px; color: var(--text-muted); }
 .traffic-results-list { flex: 1; overflow-y: auto; min-height: 0; padding: 12px; }
+.traffic-result-tabs { display:flex; gap:6px; padding:8px 10px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.traffic-result-tabs button { flex:1; padding:8px 6px; font-size:12px; border-radius:5px; color:var(--text-muted); }
+.traffic-result-tabs button[aria-pressed="true"] { color:var(--accent); background:var(--bg-selected); }
+.traffic-mitigation-host { flex:1; min-height:0; overflow:hidden; }
+.traffic-results-list[hidden], .traffic-mitigation-host[hidden] { display:none; }
+.traffic-workspace-layout[data-results-open="true"]:has(.traffic-mitigation-host:not([hidden])) > .traffic-results-column { flex-basis:clamp(300px,27vw,390px); }
 .traffic-results-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 36px 8px; }
 .traffic-results-empty > span { font-size: 32px; color: var(--text-dim); }
 .traffic-results-empty p { font-size: 12px; line-height: 1.8; color: var(--text-muted); }

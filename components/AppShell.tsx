@@ -240,6 +240,24 @@ export function AppShell() {
   const detection = useCongestionTask(selectedSession?.id ?? null);
   const mitigation = useMitigationTask(selectedSession?.id ?? null);
   const openedMitigation = useRef("");
+  const mitigationLayout = useRef<{id:string;sessionId:string;chat:boolean;results:boolean}|null>(null);
+  const mitigationPanel = useRef(false);
+  useEffect(() => {
+    const active=mitigation && !mitigation.preset && ["running","awaiting_selection","awaiting_decision","restoring"].includes(mitigation.status);
+    if(mitigationLayout.current && (!active || mitigationLayout.current.id!==mitigation?.id || mitigationLayout.current.sessionId!==mitigation?.sessionId)) {
+      setTrafficChatOpen(mitigationLayout.current.chat);setTrafficResultsOpen(mitigationLayout.current.results);
+      mitigationLayout.current=null;
+    }
+    if(active && !mitigationLayout.current) {
+      mitigationLayout.current={id:mitigation.id,sessionId:mitigation.sessionId,chat:trafficChatOpen,results:trafficResultsOpen};
+      setTrafficChatOpen(false);setTrafficResultsOpen(true);
+    }
+    if(mitigation?.panelOpen && !mitigation.preset && !mitigationPanel.current && active) {
+      setTrafficResultsOpen(true);
+      if(window.matchMedia("(max-width: 960px)").matches)setTrafficChatOpen(false);
+    }
+    mitigationPanel.current=!!mitigation?.panelOpen;
+  },[mitigation,trafficChatOpen,trafficResultsOpen]);
   useEffect(() => {
     if (mitigation?.status === "running" && openedMitigation.current !== mitigation.id) {
       openedMitigation.current = mitigation.id;
@@ -2121,7 +2139,7 @@ export function AppShell() {
         <button type="button" aria-controls="session-sidebar" aria-expanded={sidebarOpen} onClick={handleSidebarToggle}>会话</button>
         <button type="button" aria-expanded={trafficSkillsOpen} aria-controls="traffic-skills-panel" onClick={() => setTrafficSkillsOpen(current => !current)}>交通技能</button>
         <small>交通任务</small>
-        {([["abstreet", "仿真工作台", "▷"], ["scenarios", "场景管理", "▦"], ["sumo", "仿真实验", "◇"], ["gis", "分析与报告", "▧"]] as const).map(([mode, label, icon]) => <button key={mode} type="button" aria-pressed={trafficWorkspaceOpen && trafficView === mode} onClick={() => handleTrafficMode(mode)}><span aria-hidden="true">{icon}</span>{label}</button>)}
+        {([["abstreet", "仿真工作台", "▷"], ["sumo", "仿真实验", "◇"], ["gis", "分析与报告", "▧"]] as const).map(([mode, label, icon]) => <button key={mode} type="button" aria-pressed={trafficWorkspaceOpen && trafficView === mode} onClick={() => handleTrafficMode(mode)}><span aria-hidden="true">{icon}</span>{label}</button>)}
         {trafficWorkspaceOpen && <div className="traffic-mobile-panels"><button type="button" aria-expanded={trafficChatOpen} onClick={toggleTrafficChat}>对话面板</button><button type="button" aria-expanded={trafficResultsOpen} onClick={toggleTrafficResults}>结果面板</button></div>}
         <button type="button" className="traffic-nav-settings" onClick={() => setSettingsSection(getLastSettingsSection(projectTrustCwd))}>设置</button>
         {trafficSkillsOpen && <div id="traffic-skills-panel"><TrafficSkillsPanel sessionId={selectedSession?.id ?? null} onClose={closeTrafficSkills} /></div>}
@@ -2641,14 +2659,12 @@ export function AppShell() {
       <TrafficWorkspace
         open={trafficWorkspaceOpen}
         agentBusy={trafficAgentBusy || !!selectedSession && runningSessionIds.has(selectedSession.id)}
-        scenarioEngine={trafficScenarioEngine}
         view={trafficView}
         sessionId={selectedSession?.id ?? null}
         contextKey={selectedSession?.id ?? newSessionDraftKey ?? "simtrend-workspace"}
         scene={selectedGeoResult ? selectedGeoResult.data as GeoScene : geoScene}
         unread={geoSceneUnread}
         focusRequest={geoFocusRequest.sessionId === selectedSession?.id ? geoFocusRequest.token : 0}
-        onViewChange={handleTrafficMode}
         onViewResult={handleViewGeoResult}
         onClose={() => setTrafficWorkspaceOpen(false)}
         chatOpen={trafficChatOpen}

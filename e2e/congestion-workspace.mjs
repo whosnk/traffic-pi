@@ -27,6 +27,7 @@ try {
   let prompts = 0;
   let lastPrompt = "";
   await page.route("**/abstreet/abstreet.html?**", route => {
+    if (route.request().method() === "HEAD") return route.continue();
     simulationLoads++;
     if (realBridge) return route.continue();
     return route.fulfill({ contentType: "text/html", body: `<canvas width="1500" height="900"></canvas><script>
@@ -34,7 +35,7 @@ try {
     window.trafficPi={ready:true,async request(action,params){window.calls.push({action,params});if(window.failAction===action)throw new Error('测试：道路高亮失败');
     if(action==='get_road_metrics')return {roads:window.roads,simulationTime:28800};
     if(action==='get_view_state')return {width:1500,height:900,moving:false,zoom:8,nativeUi:false,anchor:params?.roadId!=null?{x:750,y:450}:null};
-    return {scene:'weekday',paused:true,speedMultiplier:5,simulationTime:28800,capabilities:['traffic-pi-ui-v1']};}};
+    return {map:'../data/system/cn/chongqing/maps/yuzhong_core.bin',randomSeed:42,scene:'weekday',paused:true,speedMultiplier:5,simulationTime:28800,capabilities:['traffic-pi-ui-v1']};}};
     </script>` });
   });
   const tile = await readFile(new URL("../public/icons/icon-192.png", import.meta.url));

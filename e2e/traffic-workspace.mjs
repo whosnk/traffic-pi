@@ -28,6 +28,7 @@ try {
   let polls = 0;
   let agentBusy = true;
   await page.route("**/abstreet/abstreet.html?**", route => {
+    if (route.request().method() === "HEAD") return route.continue();
     simulationLoads++;
     return route.fulfill({ contentType: "text/html", body: '<canvas width="1500" height="900"></canvas>' });
   });

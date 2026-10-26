@@ -18,6 +18,8 @@ const titles = {
 
 export type TrafficResult = {
   id: string;
+  scenarioId?: string;
+  runId?: string;
   type: keyof typeof titles;
   title: string;
   receivedAt: number;
@@ -81,6 +83,8 @@ export function trafficResultFromMessage(message: ToolResultMessage): TrafficRes
   return {
     id: message.toolCallId, type, title: scene?.title ?? titles[type], receivedAt: Date.now(),
     toolName: message.toolName ?? "publish_geo_scene", data: structuredClone(scene ?? value.result) as TrafficResult["data"],
+    scenarioId: typeof (value.result as Record<string, unknown>)?.scenarioId === "string" ? (value.result as Record<string, unknown>).scenarioId as string : undefined,
+    runId: typeof (value.result as Record<string, unknown>)?.runId === "string" ? (value.result as Record<string, unknown>).runId as string : undefined,
     simulationTime: value.simulationTime, unread: true,
   };
 }

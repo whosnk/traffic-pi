@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { startCongestionAnalysis } from "@/lib/traffic-workflow";
+import { abstreetRuntime, useAbstreetRuntime } from "@/lib/abstreet-runtime";
 import { useCongestionTask } from "@/lib/congestion-store";
 import { mitigationStore, startMitigation, useMitigationTask } from "@/lib/mitigation-store";
 
@@ -18,6 +19,8 @@ export function TrafficSkillsPanel({ onClose, sessionId }: { onClose: () => void
   const [expanded, setExpanded] = useState<string | null>(null);
   const task = useCongestionTask(sessionId);
   useMitigationTask(sessionId);
+  useAbstreetRuntime();
+  const capabilityReason = abstreetRuntime.actionReason("detect_congestion") || (mitigationStore.recoveryRequired() ? "恢复未确认，请先处理仿真任务。" : "");
   const [error, setError] = useState("");
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -30,15 +33,16 @@ export function TrafficSkillsPanel({ onClose, sessionId }: { onClose: () => void
     <header><div><small>TRAFFIC SKILLS</small><strong>专属交通技能</strong></div><button ref={close} type="button" onClick={onClose} aria-label="关闭交通技能">关闭</button></header>
     <p>了解交通技能与工具的联动。展开卡片查看说明，点击“开始分析”执行拥堵分析。</p>
     {error && <p role="alert">{error}</p>}
+    {capabilityReason && <p role="status">{capabilityReason}</p>}
     {skills.map((skill, index) => <article key={skill.name} className="traffic-skill-card" data-expanded={expanded === skill.name}>
       <button type="button" aria-expanded={expanded === skill.name} aria-controls={`skill-${skill.name}`} onClick={() => setExpanded(current => current === skill.name ? null : skill.name)}>
         <span className="traffic-skill-card-head">0{index + 1} · 专属技能</span><strong>{skill.title}</strong><code>{skill.name}</code><p>{skill.description}</p>
       </button>
-      {skill.name === "traffic-congestion" && <button className="traffic-skill-start" type="button" disabled={task?.status === "running"} onClick={() => {
+      {skill.name === "traffic-congestion" && <button className="traffic-skill-start" type="button" disabled={!!capabilityReason || task?.status === "running" || mitigationStore.switchBlocked()} onClick={() => {
         if (startCongestionAnalysis(sessionId)) onClose();
         else setError("当前 Agent 正忙或尚未准备好，请等待或停止当前任务后重试。");
       }}>{task?.status === "running" ? "分析执行中" : "开始分析"}</button>}
-      {skill.name === "traffic-mitigation" && <button className="traffic-skill-start" type="button" disabled={task?.status==="running" || mitigationStore.busy()} onClick={()=>{if(startMitigation(sessionId))onClose();else setError("Agent 正忙或已有任务，请等待或取消后重试。");}}>分析缓解方案</button>}
+      {skill.name === "traffic-mitigation" && <button className="traffic-skill-start" type="button" disabled={!!capabilityReason || task?.status==="running" || mitigationStore.switchBlocked()} onClick={()=>{if(startMitigation(sessionId))onClose();else setError("Agent 正忙或已有任务，请等待或取消后重试。");}}>分析缓解方案</button>}
       <div id={`skill-${skill.name}`} className="traffic-skill-description"><strong>处理步骤</strong><ol>{skill.steps.map(step => <li key={step}>{step}</li>)}</ol><strong>关联工具</strong><div className="traffic-skill-tools">{skill.tools.map(tool => <span key={tool}>{tool}</span>)}</div><strong>预期产出</strong><p>{skill.output}</p><small>实际使用需要加载技能并连接相应 MCP 工具。</small></div>
     </article>)}
   </aside>;

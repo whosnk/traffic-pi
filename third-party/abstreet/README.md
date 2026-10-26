@@ -6,6 +6,7 @@
 - web/0.3.49/：基于 A/B Street v0.3.49 构建的中文 JS、WASM、CSS 和离线数据。HTML 为 Traffic Pi 本地启动页。
 - customization/：中文文案映射，以及包含 Traffic Pi 浏览器控制接口的可重放源码补丁。
 - chongqing/yuzhong_core.geojson：重庆渝中半岛核心区导入边界（106.514–106.591°E，29.535–29.579°N）。
+- highway/：典型高速的独立合成 OSM、边界、车辆需求和生成脚本；[重建与验收说明](highway/README.md)。顶部切换使用对应地图与需求二进制，不替换 JS/WASM。
 - web/ 跟随应用提交，用于部署；downloads/ 仅保留本地。
 
 启动 Traffic Pi 后，选择侧边栏“仿真工作台”，或访问 http://127.0.0.1:30141/abstreet/abstreet.html 。不要双击 HTML，WASM 需要 HTTP 服务。
@@ -37,3 +38,11 @@ cargo install wasm-bindgen-cli --version 0.2.88 --locked --root .next/wasm-tools
 任务锁阻止普通时间／配时写入，地图与查询仍可用。`run_for` 的 `displaySpeed: 5` 按实际经过时间定速推进并保持显示，结束后暂停。候选只支持固定配时，保持周期、offset 与转向权限，并经过行人约束校验。含自适应阶段（包括自适应行人阶段）的路口不会被自动转换。
 
 新桥兼容测试：`TRAFFIC_PI_CANDIDATE=1` 和 `TRAFFIC_PI_CANDIDATE_DIR=.next/abstreet-mitigation-candidate` 运行 `e2e/abstreet-workflow-bridge.mjs`；`node e2e/abstreet-mitigation-bridge.mjs` 检查真实重庆桥的同起点重跑、可见推进、锁与取消恢复。后者在独立测试窗口临时构造固定配时，不修改交付场景。`node e2e/mitigation-workspace.mjs` 使用真实 MCP/SSE 接收链与仿真替身验证选择授权、六阶段流程、方案弹窗、结果及窄屏交互。
+
+信号动态展示声明 `traffic-pi-signal-visual-v1`。`set_signal_visualization` 接收 `enabled`、`intersectionId` 和可选 `previewStage`；任务期间校验 `leaseId`。Rust 每帧按实际相位的 `TurnPriority` 绘制保护放行绿箭头、让行琥珀虚线和禁止红色停止线；预览仅画轮廓。`focus_on_intersection` 支持与道路定位相同的 `smooth`、`zoom`、`padding`，不修改时间控制。取消、完成和租约失效清理信号图层。
+
+真实治理复用右侧“当前治理”面板，预设模型仍使用带来源说明的独立弹窗。`get_signal_plan` 在治理画面可见时单请求轮询，约每次完成后 250ms 读取相位、剩余秒数与仿真时刻。原配时独立保存，两轮曲线使用各自每 5 秒的实际样本；方案应用需读取核对。暂停观察只在采样段结束后生效，不释放租约或延长执行时限。
+
+串行运行 `e2e/abstreet-signal-visual.mjs` 验证实际路口、相位变化、预览隔离、镜头与检查点恢复；`e2e/mitigation-workspace.mjs` 验证右侧授权、配时条、双轮曲线和不同视口。前者使用真实 WASM，后者使用受控仿真替身，不能互相替代。重庆含自适应相位的目标仍会如实结束诊断，不自动生成配时或转换控制类型。
+
+`e2e/abstreet-signal-workspace.mjs` 在隔离窗口临时设置固定配时，用真实 WASM 验证工作台内的实时读取、地图标记、暂停与取消，并保存 1719×889、1440×900、1280×720 页面截图。`e2e/abstreet-signal-trials.mjs` 以 5× 跑完两轮各 300 秒，每轮读取 61 个采样点，检查同起点时间对齐、候选读回及基准结束状态恢复；原始样本写入 `.next/signal-visual/real-trials.json`。这些测试不修改交付地图或需求。

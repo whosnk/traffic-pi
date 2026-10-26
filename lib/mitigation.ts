@@ -5,6 +5,7 @@ export type Approach = {
 };
 export type SignalPlan = {
   intersectionId: number; offsetSeconds: number; currentStage: number;
+  stageRemainingSeconds?: number; simulationTime?: number;
   stages: { index: number; durationSeconds: number; minimumSeconds: number; fixed: boolean;
     movements: { fromRoadId: number; toRoadId: number; crosswalk: boolean; protected: boolean }[] }[];
 };

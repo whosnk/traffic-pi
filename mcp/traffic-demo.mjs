@@ -18,7 +18,7 @@ async function dispatch(action, params = {}, extra) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ actionId, action, params, ...identity }),
-      signal: AbortSignal.any([AbortSignal.timeout(action === "evaluate_signal_plan" ? 1265000 : action === "analyze_congestion_cause" ? 605000 : detection ? 302000 : 65000), ...(extra?.signal ? [extra.signal] : [])]),
+      signal: AbortSignal.any([AbortSignal.timeout(action === "start" ? 245000 : action === "evaluate_signal_plan" ? 1265000 : action === "analyze_congestion_cause" ? 605000 : detection ? 302000 : 65000), ...(extra?.signal ? [extra.signal] : [])]),
     });
     if (!response.headers.get("content-type")?.includes("application/json")) throw new Error("无法访问 Traffic Pi，请确认本机服务已启动且未启用访问密码。");
     const result = await response.json();
@@ -84,7 +84,7 @@ tool("resume_current_simulation", "以 1 倍速度继续当前仿真并返回真
 tool("speed_up_current_simulation", "将当前仿真提高一档速度并返回真实状态。", {}, "faster");
 tool("get_simulation_state", "读取仿真时间、速度、暂停状态、场景和随机种子。", {});
 server.registerTool("detect_congestion", { description: "检测当前 A/B Street 疑似拥堵道路：自动打开当前场景，读取状态和指标，按排队≥5辆且速度≤10km/h筛选前5处，替换高亮并定位。保持当前时间控制状态，不重置或推进。返回采集时间、原始指标和排名；后续查看第几个点使用返回 roadId 调用 focus_on_road。", inputSchema: {} }, async (_params, extra) => dispatch("detect_congestion", {}, extra));
-server.registerTool("analyze_congestion_cause", { description: "分析并缓解当前拥堵：关联一处目标道路、信号相位和下游排队，观察最多两个周期并暂停，展示溯源证据与候选配时等待用户选择。不自动应用方案；无 roadId 时选择当前首位疑似拥堵。用户明确要求预设场景、推演或展示完整治理闭环时，可传 presetScenario:true，采用预设模型生成方案，选择与验证由页面完成；该模式不修改真实仿真配时，结果不能当作实测。", inputSchema: { roadId: z.number().int().nonnegative().optional(), presetScenario: z.boolean().optional() } }, async (params, extra) => dispatch("analyze_congestion_cause",params,extra));
+server.registerTool("analyze_congestion_cause", { description: "分析并缓解当前拥堵：关联一处目标道路、信号相位和下游排队，观察最多两个周期并暂停，展示溯源证据与候选配时等待用户选择。不自动应用方案；无 roadId 时选择当前首位疑似拥堵。默认使用真实控制桥，不支持时如实报告，不自动降级。只有用户主动选择预设模型或明确要求预设参数时，可传 presetScenario:true，采用预设模型生成方案，选择与验证由页面完成；该模式不修改真实仿真配时，结果不能当作实测。高速演示不支持城市信号治理。", inputSchema: { roadId: z.number().int().nonnegative().optional(), presetScenario: z.boolean().optional() } }, async (params, extra) => dispatch("analyze_congestion_cause",params,extra));
 for (const name of ["evaluate_signal_plan", "finalize_signal_trial"]) server.registerTool(name, {
   description: name === "evaluate_signal_plan" ? "仅在用户通过方案面板选定后，按面板提供的 taskId、approvalToken、version 从同起点验证原配时与选定方案。不得自行生成授权标识。" : "仅在用户通过结果面板决定保留或恢复后，提交面板提供的 taskId、approvalToken、version。不得自行选择。",
   inputSchema: { taskId:z.string().min(1), approvalToken:z.string().uuid(), version:z.number().int().positive() },

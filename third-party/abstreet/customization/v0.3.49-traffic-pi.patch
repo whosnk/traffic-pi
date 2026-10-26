@@ -291,15 +291,15 @@ diff --git a/apps/game/src/traffic_pi.rs b/apps/game/src/traffic_pi.rs
 new file mode 100644
 --- /dev/null
 +++ b/apps/game/src/traffic_pi.rs
-@@ -0,0 +1,789 @@
+@@ -0,0 +1,839 @@
 +use std::collections::BTreeMap;
 +
 +use anyhow::{bail, Context, Result};
-+use geom::{Duration, Pt2D, Time};
-+use map_model::{ControlTrafficSignal, IntersectionID, RoadID, StageType, Traversable};
++use geom::{ArrowCap, Distance, Duration, Line, Pt2D, Time};
++use map_model::{ControlTrafficSignal, IntersectionID, RoadID, StageType, Traversable, TurnPriority};
 +use serde_json::{json, Value};
 +use sim::{AgentID, CarStatus, Sim};
-+use widgetry::{Color, EventCtx, GfxCtx, UpdateType};
++use widgetry::{Color, EventCtx, GfxCtx, Text, UpdateType};
 +
 +use crate::app::App;
 +use crate::sandbox::{SpeedSetting, TimePanel};
@@ -368,6 +368,7 @@ new file mode 100644
 +    task_owner: Option<String>,
 +    task_seen: Option<instant::Instant>,
 +    task_checkpoints: BTreeMap<String, TaskCheckpoint>,
++    signal_visual: Option<(IntersectionID, Option<usize>)>,
 +}
 +
 +include!("traffic_mitigation.rs");
@@ -426,6 +427,7 @@ new file mode 100644
 +        }
 +        ready();
 +        if self.task_seen.map(|at| at.elapsed().as_secs() > 30).unwrap_or(false) {
++            self.signal_visual = None;
 +            self.cancel_advance();
 +            if self.restore_task_checkpoint(ctx, app, panel, "origin", true).is_ok() {
 +                self.task_owner = None; self.task_seen = None; self.task_checkpoints.clear();
@@ -514,7 +516,7 @@ new file mode 100644
 +    fn state(&self, app: &App, panel: &TimePanel) -> Value {
 +        json!({"simulationTime":seconds(app),"paused":panel.is_paused(),"speedMultiplier":panel.traffic_pi_speed(),
 +            "map":app.primary.map.get_name().path(),"scene":app.primary.sim.get_run_name(),"scenario":app.primary.sim.get_run_name(),"randomSeed":app.primary.current_flags.sim_flags.rng_seed,"simulationClock":app.primary.sim.time().ampm_tostring(),
-+            "capabilities":["traffic-pi-ui-v1","traffic-pi-mitigation-v1"],"busy":self.advance.is_some(),"taskLocked":self.task_owner.is_some()})
++            "capabilities":["traffic-pi-ui-v1","traffic-pi-mitigation-v1","traffic-pi-signal-visual-v1"],"busy":self.advance.is_some(),"taskLocked":self.task_owner.is_some()})
 +    }
 +
 +    fn roads(&self, app: &App, selected: Option<Vec<usize>>) -> Result<Vec<Value>> {
@@ -680,7 +682,7 @@ new file mode 100644
 +        if action.starts_with("mitigation_") && action != "mitigation_context" {
 +            return self.task_command(ctx, app, panel, action, p).map(Some);
 +        }
-+        let read_or_camera = ["get_simulation_state", "get_view_state", "get_road_metrics", "get_intersection_metrics", "get_signal_plan", "mitigation_context", "cancel_camera", "focus_on_road", "fit_roads", "global_view", "zoom_view"].contains(&action);
++        let read_or_camera = ["get_simulation_state", "get_view_state", "get_road_metrics", "get_intersection_metrics", "get_signal_plan", "mitigation_context", "cancel_camera", "focus_on_road", "focus_on_intersection", "set_signal_visualization", "fit_roads", "global_view", "zoom_view"].contains(&action);
 +        if self.task_owner.is_some() && !read_or_camera && self.task_owner.as_deref() != p["leaseId"].as_str() { bail!("Signal trial active: time and signal controls are locked"); }
 +        if self.advance.is_some()
 +            && !read_or_camera
@@ -688,6 +690,26 @@ new file mode 100644
 +            bail!("Simulation is advancing; wait for completion");
 +        }
 +        let value = match action {
++            "set_signal_visualization" => {
++                if self.task_owner.is_some() && self.task_owner.as_deref() != p["leaseId"].as_str() { bail!("Task lease mismatch"); }
++                if p["enabled"].as_bool() == Some(false) {
++                    self.signal_visual = None;
++                    json!({"enabled":false})
++                } else {
++                    let id = IntersectionID(index(p, "intersectionId")?);
++                    let signal = app.primary.map.maybe_get_traffic_signal(id).context("Not a signalised intersection")?;
++                    let preview = p["previewStage"].as_u64().map(|n| n as usize);
++                    if preview.map(|n| n >= signal.stages.len()).unwrap_or(false) { bail!("Invalid preview stage"); }
++                    self.signal_visual = Some((id, preview));
++                    json!({"enabled":true,"intersectionId":id.0,"previewStage":preview})
++                }
++            }
++            "focus_on_intersection" => {
++                let id = IntersectionID(index(p, "intersectionId")?);
++                let i = app.primary.map.maybe_get_i(id).context("Intersection does not exist")?;
++                self.camera_to(ctx, i.polygon.center(), p["zoom"].as_f64().unwrap_or(6.0), p["smooth"].as_bool().unwrap_or(false), camera_area(ctx,p)?);
++                json!({"intersectionId":id.0})
++            }
 +            "mitigation_context" => self.mitigation_context(app, p)?,
 +            "get_simulation_state" => self.state(app, panel),
 +            "pause" => {
@@ -1079,13 +1101,41 @@ new file mode 100644
 +                g.draw_polygon(color.alpha(0.65), r.get_thick_polygon());
 +            }
 +        }
++        if let Some((id, preview)) = self.signal_visual {
++            if let Some(signal) = app.primary.map.maybe_get_traffic_signal(id) {
++                let (current, _) = app.primary.sim.current_stage_and_remaining_time(id);
++                let stage = &signal.stages[current];
++                for (movement, path) in &app.primary.map.get_i(id).movements {
++                    if movement.crosswalk { continue; }
++                    if let Some(index) = preview {
++                        if signal.stages[index].get_priority_of_movement(*movement) != TurnPriority::Banned {
++                            g.draw_polygon(Color::hex("#b8e9ef").alpha(0.7), path.geom.make_arrow(Distance::meters(1.4), ArrowCap::Triangle).to_outline(Distance::meters(0.2)));
++                        }
++                    }
++                    match stage.get_priority_of_movement(*movement) {
++                        TurnPriority::Protected => g.draw_polygon(Color::hex("#39dc9e"), path.geom.make_arrow(Distance::meters(0.65), ArrowCap::Triangle)),
++                        TurnPriority::Yield => {
++                            for dash in path.geom.dashed_lines(Distance::meters(0.55), Distance::meters(1.0), Distance::meters(0.6)) { g.draw_polygon(Color::hex("#ffbf50"), dash); }
++                            g.draw_polygon(Color::hex("#ffbf50"), path.geom.last_line().to_polyline().make_arrow(Distance::meters(0.55), ArrowCap::Triangle));
++                            Text::from("让行").bg(Color::BLACK).render_autocropped(g).scale(0.08).centered_on(path.geom.middle()).draw(g);
++                        }
++                        TurnPriority::Banned => {
++                            let pt = path.geom.first_pt();
++                            let angle = path.geom.first_line().angle().rotate_degs(90.0);
++                            let bar = Line::must_new(pt.project_away(Distance::meters(1.1),angle), pt.project_away(Distance::meters(1.1),angle.opposite()));
++                            g.draw_polygon(Color::hex("#ff6575"), bar.make_polygons(Distance::meters(0.7)));
++                        }
++                    }
++                }
++            }
++        }
 +    }
 +}
 diff --git a/apps/game/src/traffic_mitigation.rs b/apps/game/src/traffic_mitigation.rs
 new file mode 100644
 --- /dev/null
 +++ b/apps/game/src/traffic_mitigation.rs
-@@ -0,0 +1,141 @@
+@@ -0,0 +1,143 @@
 +struct TaskCheckpoint {
 +    sim: Vec<u8>,
 +    signals: Vec<ControlTrafficSignal>,
@@ -1148,11 +1198,13 @@ new file mode 100644
 +                self.restore_task_checkpoint(ctx, app, panel, p["name"].as_str().context("Missing checkpoint name")?, false)?;
 +            },
 +            "mitigation_cancel" => {
++                self.signal_visual = None;
 +                self.cancel_advance();
 +                self.restore_task_checkpoint(ctx, app, panel, "origin", true)?;
 +                self.task_owner = None; self.task_seen = None; self.task_checkpoints.clear();
 +            },
 +            "mitigation_finish" => {
++                self.signal_visual = None;
 +                let name = p["name"].as_str().context("Missing checkpoint name")?;
 +                self.restore_task_checkpoint(ctx, app, panel, name, false)?;
 +                let original = self.task_checkpoints.get("origin").context("Missing origin")?;

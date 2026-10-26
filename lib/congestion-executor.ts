@@ -39,4 +39,4 @@ export async function executeCongestion(
       : "当前未发现符合筛选条件的疑似拥堵道路", samplingNote: "仅覆盖接口返回道路，最多展示前 5 处；不代表全路网。车速是历史行程平均，非瞬时测速。状态与道路指标分别采集；运行中的仿真并非完全同一瞬间。" };
 }
 
-export type CongestionResult = Awaited<ReturnType<typeof executeCongestion>>;
+export type CongestionResult = Awaited<ReturnType<typeof executeCongestion>> & { scenarioId?: string; runId?: string };

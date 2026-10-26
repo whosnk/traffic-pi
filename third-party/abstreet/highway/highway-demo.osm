@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="Traffic Pi synthetic highway">
+<node id="1" lon="106.69875904860393" lat="29.699802158273382"/>
+<node id="2" lon="106.70517063081697" lat="29.699802158273382"/>
+<node id="3" lon="106.71447776628749" lat="29.699802158273382"/>
+<node id="4" lon="106.72192347466391" lat="29.699802158273382"/>
+<node id="5" lon="106.72192347466391" lat="29.700197841726617"/>
+<node id="6" lon="106.71447776628749" lat="29.700197841726617"/>
+<node id="7" lon="106.70517063081697" lat="29.700197841726617"/>
+<node id="8" lon="106.69875904860393" lat="29.700197841726617"/>
+<node id="9" lon="106.7018614270941" lat="29.698021582733812"/>
+<node id="10" lon="106.71892450879008" lat="29.698021582733812"/>
+<node id="11" lon="106.71882109617374" lat="29.701978417266186"/>
+<node id="12" lon="106.70175801447778" lat="29.701978417266186"/>
+<node id="13" lon="106.69875904860393" lat="29.697661870503598"/>
+<node id="14" lon="106.70372285418821" lat="29.69892086330935"/>
+<node id="15" lon="106.71623578076526" lat="29.69892086330935"/>
+<node id="16" lon="106.72192347466391" lat="29.697661870503598"/>
+<node id="17" lon="106.72192347466391" lat="29.7023381294964"/>
+<node id="18" lon="106.71695966907963" lat="29.701079136690648"/>
+<node id="19" lon="106.70444674250258" lat="29.701079136690648"/>
+<node id="20" lon="106.69875904860393" lat="29.7023381294964"/>
+<node id="21" lon="106.71995863495347" lat="29.698741007194243"/>
+<node id="22" lon="106.72016546018615" lat="29.700899280575538"/>
+<node id="23" lon="106.70072388831437" lat="29.701258992805755"/>
+<node id="24" lon="106.7005170630817" lat="29.69910071942446"/>
+<way id="100"><nd ref="1"/><nd ref="2"/><nd ref="3"/><nd ref="4"/><tag k="name" v="高速主线 · 东向"/><tag k="highway" v="motorway"/><tag k="oneway" v="yes"/><tag k="lanes" v="3"/><tag k="maxspeed" v="90"/><tag k="sidewalk" v="no"/><tag k="bicycle" v="no"/><tag k="foot" v="no"/></way>
+<way id="101"><nd ref="5"/><nd ref="6"/><nd ref="7"/><nd ref="8"/><tag k="name" v="高速主线 · 西向"/><tag k="highway" v="motorway"/><tag k="oneway" v="yes"/><tag k="lanes" v="3"/><tag k="maxspeed" v="90"/><tag k="sidewalk" v="no"/><tag k="bicycle" v="no"/><tag k="foot" v="no"/></way>
+<way id="102"><nd ref="13"/><nd ref="9"/><nd ref="14"/><nd ref="2"/><tag k="name" v="东向入口匝道"/><tag k="highway" v="motorway_link"/><tag k="oneway" v="yes"/><tag k="lanes" v="1"/><tag k="maxspeed" v="50"/><tag k="sidewalk" v="no"/><tag k="bicycle" v="no"/><tag k="foot" v="no"/></way>
+<way id="103"><nd ref="3"/><nd ref="15"/><nd ref="10"/><nd ref="16"/><tag k="name" v="东向出口匝道"/><tag k="highway" v="motorway_link"/><tag k="oneway" v="yes"/><tag k="lanes" v="1"/><tag k="maxspeed" v="50"/><tag k="sidewalk" v="no"/><tag k="bicycle" v="no"/><tag k="foot" v="no"/></way>
+<way id="104"><nd ref="17"/><nd ref="11"/><nd ref="18"/><nd ref="6"/><tag k="name" v="西向入口匝道"/><tag k="highway" v="motorway_link"/><tag k="oneway" v="yes"/><tag k="lanes" v="1"/><tag k="maxspeed" v="50"/><tag k="sidewalk" v="no"/><tag k="bicycle" v="no"/><tag k="foot" v="no"/></way>
+<way id="105"><nd ref="7"/><nd ref="19"/><nd ref="12"/><nd ref="20"/><tag k="name" v="西向出口匝道"/><tag k="highway" v="motorway_link"/><tag k="oneway" v="yes"/><tag k="lanes" v="1"/><tag k="maxspeed" v="50"/><tag k="sidewalk" v="no"/><tag k="bicycle" v="no"/><tag k="foot" v="no"/></way>
+<way id="106"><nd ref="10"/><nd ref="21"/><nd ref="22"/><nd ref="11"/><tag k="name" v="东侧立交连接匝道"/><tag k="highway" v="motorway_link"/><tag k="oneway" v="yes"/><tag k="lanes" v="1"/><tag k="maxspeed" v="50"/><tag k="sidewalk" v="no"/><tag k="bicycle" v="no"/><tag k="foot" v="no"/></way>
+<way id="107"><nd ref="12"/><nd ref="23"/><nd ref="24"/><nd ref="9"/><tag k="name" v="西侧立交连接匝道"/><tag k="highway" v="motorway_link"/><tag k="oneway" v="yes"/><tag k="lanes" v="1"/><tag k="maxspeed" v="50"/><tag k="sidewalk" v="no"/><tag k="bicycle" v="no"/><tag k="foot" v="no"/></way>
+</osm>

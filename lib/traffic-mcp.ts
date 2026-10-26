@@ -90,7 +90,7 @@ export function createTrafficMcpExtension(cwd: string) {
               const detection = ["detect_congestion", "analyze_congestion_cause", "evaluate_signal_plan", "finalize_signal_trial"].includes(tool.name);
               const result = await client.callTool({ name: tool.name, arguments: args,
                 ...(detection ? { _meta: { trafficPi: { sessionId: ctx.sessionManager.getSessionId(), toolCallId: _id } } } : {}),
-              }, undefined, { signal, timeout: tool.name === "evaluate_signal_plan" ? 1270000 : tool.name === "analyze_congestion_cause" ? 610000 : detection ? 305000 : 60000 });
+              }, undefined, { signal, timeout: tool.name === "start_rush_hour_demo" ? 250000 : tool.name === "evaluate_signal_plan" ? 1270000 : tool.name === "analyze_congestion_cause" ? 610000 : detection ? 305000 : 60000 });
               if (detection && result.isError) throw new Error((result.structuredContent as { error?: string } | undefined)?.error ?? JSON.stringify(result.content));
               return { content: [{ type: "text" as const, text: JSON.stringify(result) }], details: result };
             },

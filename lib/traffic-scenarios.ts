@@ -26,13 +26,29 @@ export const chongqingScenario: TrafficScenario = {
 };
 
 export const highwayScenario: TrafficScenario = {
-  id: "planned:highway", name: "高速公路场景", category: "highway",
-  engine: "sumo", visualization: "external",
-  description: "尚未建模，也未接入主可视化。",
-  source: "待开发", capabilities: [],
-  availability: "planned", availabilityNote: "规划中 · 当前不可运行",
-  entryTarget: null,
+  id: "abstreet:highway-demo", name: "典型高速演示", category: "highway",
+  engine: "abstreet", visualization: "abstreet",
+  description: "双向三车道主线、出入口与立交匝道；固定需求在 A/B Street 中运行。",
+  source: "Traffic Pi 合成路网与需求 · 种子 42", capabilities: ["车辆演示", "时间控制", "地图交互"],
+  availability: "implemented", availabilityNote: "已接入 · 加载后由控制桥确认地图与需求",
+  entryTarget: "abstreet",
 };
+
+export const abstreetScenarios = [
+  { ...chongqingScenario, label: "城市交通", mapPath: "../data/system/cn/chongqing/maps/yuzhong_core.bin", demandPath: "../data/system/cn/chongqing/scenarios/yuzhong_core/weekday.bin", scene: "weekday", time: "08:00:00", autoPlay: false, endTime: null },
+  { ...highwayScenario, label: "高速公路", mapPath: "../data/system/cn/chongqing/maps/highway-demo.bin", demandPath: "../data/system/cn/chongqing/scenarios/highway-demo/motorway.bin", scene: "motorway", time: "08:00:00", autoPlay: true, endTime: 8 * 3600 + 35 * 60 },
+] as const;
+export type AbstreetScenario = typeof abstreetScenarios[number];
+export function abstreetUrl(scenario: AbstreetScenario, standalone = false) {
+  return `/abstreet/abstreet.html?${scenario.demandPath}&--time=${scenario.time}${standalone && scenario.autoPlay ? "#autoplay" : ""}`;
+}
+export function sceneIdentityMatches(scenario: AbstreetScenario, state: { map?: string; scene?: string; randomSeed?: number }) {
+  return state.map === scenario.mapPath && state.scene === scenario.scene && state.randomSeed === 42;
+}
+export function scenarioActionReason(scenarioId: string, action: string) {
+  return scenarioId === highwayScenario.id && ["detect_congestion", "analyze_congestion_cause", "evaluate_signal_plan", "finalize_signal_trial", "get_signal_plan", "apply_signal_plan", "restore_signal_plan", "capture_metrics", "compare_metrics"].includes(action)
+    ? "典型高速演示仅支持基础播放、时间控制和地图交互；城市拥堵检测与信号配时验证请切换城市交通。" : "";
+}
 
 export function trafficScenarios(scenarios: SimtrendScenario[]): TrafficScenario[] {
   return [chongqingScenario, ...scenarios.map((scenario): TrafficScenario => ({
