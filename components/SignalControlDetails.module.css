@@ -1,0 +1,28 @@
+.signalDetails { display: grid; gap: 18px; margin: 14px 0; }
+.signalDetails section { min-width: 0; }
+.signalDetails h3 { margin: 0 0 8px; font-size: 13px; }
+.signalDetails p { color: var(--text-muted); font-size: 11px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 10px; margin: 8px 0; }
+.applied { color: var(--accent); font-size: 12px; }
+.preview { border: 1px dashed var(--border); padding: 6px; }
+.phaseList { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; }
+.phaseList button { text-align: left; font-size: 11px; }
+.phaseList button[data-active="true"] { background: color-mix(in srgb,var(--accent) 12%,var(--bg-panel)); }
+.phaseList small { display: block; overflow-wrap: anywhere; }
+.timingPlan { border-top: 1px solid var(--border); padding-top: 8px; margin-top: 10px; }
+.timingRow { margin: 10px 0; font-size: 11px; }
+.timingRow > span { display: block; margin: 4px 0; font-variant-numeric: tabular-nums; }
+.bar { height: 7px; background: var(--bg-hover); border-radius: 2px; overflow: hidden; margin: 3px 0; }
+.bar i { display: block; height: 100%; background: #95a3b1; }
+.candidateBar i { background: #57ceb7; }
+.queueFigure { margin: 12px 0; padding: 8px; border: 1px solid var(--border); border-radius: 6px; }
+.queueFigure figcaption { display: flex; flex-direction: column; gap: 4px; }
+.queueFigure button { text-align: left; font-size: 11px; }
+.queueFigure svg { display: block; width: 100%; height: auto; }
+.queueFigure text { fill: var(--text-muted); font-size: 9px; }
+.axis { fill: none; stroke: var(--border); }
+.gridLine { stroke: var(--border); stroke-dasharray: 3 4; fill: none; }
+.baselineLine, .candidateLine { stroke: #95a3b1; stroke-width: 2; fill: none; stroke-linejoin: round; }
+.candidateLine { stroke: #57ceb7; }
+.baselineKey { color: #95a3b1; }
+.candidateKey { color: #57ceb7; }

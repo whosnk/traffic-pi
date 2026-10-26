@@ -1,6 +1,10 @@
+import { abstreetRuntime } from "./abstreet-runtime";
+
 export type WorkflowDefinition = { kind: string; title: string; steps: readonly string[] };
 export type WorkflowCall = { id: string; name: string; kind: "mcp" | "internal"; startedAt: number; endedAt?: number; error?: string };
 export type WorkflowTask = {
+  scenarioId?: string;
+  runId?: string;
   sessionId: string;
   id: string;
   definition: WorkflowDefinition;
@@ -21,6 +25,8 @@ export function workflowStepState(task: WorkflowTask | null, index: number): "wa
 }
 
 export function startCongestionAnalysis(sessionId: string | null) {
+  const reason = abstreetRuntime.actionReason("detect_congestion");
+  if (reason) { window.dispatchEvent(new CustomEvent("traffic-action-error", { detail: reason })); return false; }
   const detail = { sessionId, handled: false };
   const accepted = window.dispatchEvent(new CustomEvent("traffic-start-congestion", { detail, cancelable: true }));
   return accepted && detail.handled;

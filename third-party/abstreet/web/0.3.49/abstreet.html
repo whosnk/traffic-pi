@@ -5,7 +5,7 @@
 const commands=[];const pending=new Map();
 window.trafficPiTakeCommand=()=>{const command=commands.shift();return command?JSON.stringify(command):null};
 window.trafficPiRespond=(id,payload,ok)=>{const item=pending.get(id);if(!item)return;pending.delete(id);item.cleanup();try{ok?item.resolve(JSON.parse(payload)):item.reject(new Error(payload))}catch(error){item.reject(error)}};
-window.trafficPiReady=()=>{window.trafficPi.ready=true};
+window.trafficPiReady=()=>{if(window.trafficPi.ready)return;window.trafficPi.ready=true;if(location.hash==="#autoplay")void window.trafficPi.request("set_speed",{speedMultiplier:1}).then(()=>window.trafficPi.request("resume")).catch(error=>{document.querySelector(".preloading")?.append(String(error))})};
 window.trafficPiViewChanged=payload=>window.dispatchEvent(new CustomEvent("traffic-pi-view-change",{detail:JSON.parse(payload)}));
 window.trafficPi={ready:false,request(action,params={},signal){return new Promise((resolve,reject)=>{
   const id=crypto.randomUUID();

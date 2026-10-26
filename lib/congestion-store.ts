@@ -3,6 +3,7 @@ import { congestionSteps } from "./congestion";
 import type { WorkflowTask } from "./traffic-workflow";
 import type { CongestionResult } from "./congestion-executor";
 import { mitigationStore } from "./mitigation-store";
+import { abstreetRuntime } from "./abstreet-runtime";
 
 export type DetectionTask = WorkflowTask & { result?: CongestionResult };
 const tasks = new Map<string, DetectionTask>();
@@ -11,16 +12,21 @@ const listeners = new Set<() => void>();
 function emit() { for (const listener of listeners) listener(); }
 export const congestionStore = {
   get(sessionId: string | null) { return sessionId ? tasks.get(sessionId) ?? null : null; },
+  busy() { return [...tasks.values()].some(task => task.status === "running"); },
   start(sessionId: string, id: string, toolName = "detect_congestion") {
     const key = `${sessionId}:${id}`;
     if (seen.has(key)) return false;
-    if (mitigationStore.busy()) return false;
+    if (mitigationStore.switchBlocked()) return false;
     if ([...tasks.values()].some(task => task.status === "running")) return false;
     seen.add(key);
     const startedAt = Date.now();
-    tasks.set(sessionId, { sessionId, id, definition: { kind: "congestion", title: "拥堵分析", steps: congestionSteps }, startedAt,
+    tasks.set(sessionId, { sessionId, id, scenarioId: abstreetRuntime.get().scenarioId, runId: abstreetRuntime.get().runId, definition: { kind: "congestion", title: "拥堵分析", steps: congestionSteps }, startedAt,
       calls: [{ id, name: toolName, kind: "mcp", startedAt }], stage: 0, stageTimes: { 0: startedAt }, message: "正在打开 A/B Street，等待当前场景就绪…", status: "running" });
     emit(); return true;
+  },
+  scope(sessionId: string, id: string, scenarioId: string, runId: string) {
+    const task = this.get(sessionId);
+    if (task?.id === id) { tasks.set(sessionId, { ...task, scenarioId, runId }); emit(); }
   },
   progress(sessionId: string, id: string, stage: number, message: string) {
     const task = this.get(sessionId);

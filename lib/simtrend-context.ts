@@ -14,6 +14,7 @@ export type SimtrendContext = {
 };
 
 const contexts = new Map<string, SimtrendContext>();
+const parkedContexts = new Map<string, Map<string, SimtrendContext>>();
 const listeners = new Set<() => void>();
 function emit() { for (const listener of listeners) listener(); }
 
@@ -22,7 +23,11 @@ export const simtrendContextStore = {
   scene(key: string, scenarioId: string, scenarioName: string) {
     const previous = contexts.get(key);
     if (previous?.scenarioId === scenarioId && previous.scenarioName === scenarioName) return;
-    contexts.set(key, { scenarioId, scenarioName, selection: null, revision: previous ? previous.revision + 1 : 0, incidentDraft: null });
+    const parked = parkedContexts.get(key) ?? new Map<string, SimtrendContext>();
+    if (previous) parked.set(previous.scenarioId, structuredClone(previous));
+    parkedContexts.set(key, parked);
+    const saved = parked.get(scenarioId);
+    contexts.set(key, { scenarioId, scenarioName, selection: null, revision: previous ? previous.revision + 1 : 0, incidentDraft: saved?.incidentDraft ?? null });
     emit();
   },
   select(key: string, scenarioId: string, selection: SimtrendContext["selection"]) {
@@ -59,6 +64,8 @@ export const simtrendContextStore = {
     if (!previous || draftKey === sessionId) return;
     contexts.set(sessionId, structuredClone(previous));
     contexts.delete(draftKey);
+    const parked = parkedContexts.get(draftKey);
+    if (parked) { parkedContexts.set(sessionId, parked); parkedContexts.delete(draftKey); }
     emit();
   },
   subscribe(listener: () => void) {

@@ -7,6 +7,7 @@ import { SessionSidebar } from "./SessionSidebar";
 import { ChatWindow } from "./ChatWindow";
 import { mitigationStore, useMitigationTask } from "@/lib/mitigation-store";
 import { mitigationTool } from "@/lib/mitigation";
+import { scenarioSwitchReason } from "@/lib/traffic-scenarios";
 import { simtrendContextStore } from "@/lib/simtrend-context";
 import type { IncidentDraftResult } from "@/lib/simtrend-draft";
 import { TrafficWorkspace, type TrafficView } from "./TrafficWorkspace";
@@ -185,14 +186,13 @@ export function AppShell() {
   const [projectTrustError, setProjectTrustError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [trafficWorkspaceOpen, setTrafficWorkspaceOpen] = useState(true);
-  const [trafficView, setTrafficView] = useState<TrafficView>("gis");
+  const [trafficAgentBusy, setTrafficAgentBusy] = useState(false);
+  const [trafficScenarioEngine, setTrafficScenarioEngine] = useState<"abstreet" | "sumo">("abstreet");
+  const [trafficView, setTrafficView] = useState<TrafficView>("abstreet");
   const [trafficSkillsOpen, setTrafficSkillsOpen] = useState(false);
   const closeTrafficSkills = useCallback(() => setTrafficSkillsOpen(false), []);
   const [trafficChatOpen, setTrafficChatOpen] = useState(true);
-  const [trafficResultsOpen, setTrafficResultsOpen] = useState(true);
-  useEffect(() => {
-    if (trafficWorkspaceOpen && trafficView === "abstreet") setTrafficResultsOpen(false);
-  }, [trafficWorkspaceOpen, trafficView]);
+  const [trafficResultsOpen, setTrafficResultsOpen] = useState(false);
   useEffect(() => {
     const narrow = window.matchMedia("(max-width: 960px)");
     const collapse = () => { if (narrow.matches) { setTrafficChatOpen(false); setTrafficResultsOpen(false); } };
@@ -226,7 +226,7 @@ export function AppShell() {
       if (result.type === "simtrend_draft") {
         const applied = simtrendContextStore.applyDraft(sessionId, result.data as IncidentDraftResult);
         if (applied && selectedSession?.id === sessionId) {
-          setTrafficView("sumo"); setTrafficWorkspaceOpen(true);
+          setTrafficView("sumo"); setTrafficScenarioEngine("sumo"); setTrafficWorkspaceOpen(true);
         }
       }
     }
@@ -240,10 +240,28 @@ export function AppShell() {
   const detection = useCongestionTask(selectedSession?.id ?? null);
   const mitigation = useMitigationTask(selectedSession?.id ?? null);
   const openedMitigation = useRef("");
+  const mitigationLayout = useRef<{id:string;sessionId:string;chat:boolean;results:boolean}|null>(null);
+  const mitigationPanel = useRef(false);
+  useEffect(() => {
+    const active=mitigation && !mitigation.preset && ["running","awaiting_selection","awaiting_decision","restoring"].includes(mitigation.status);
+    if(mitigationLayout.current && (!active || mitigationLayout.current.id!==mitigation?.id || mitigationLayout.current.sessionId!==mitigation?.sessionId)) {
+      setTrafficChatOpen(mitigationLayout.current.chat);setTrafficResultsOpen(mitigationLayout.current.results);
+      mitigationLayout.current=null;
+    }
+    if(active && !mitigationLayout.current) {
+      mitigationLayout.current={id:mitigation.id,sessionId:mitigation.sessionId,chat:trafficChatOpen,results:trafficResultsOpen};
+      setTrafficChatOpen(false);setTrafficResultsOpen(true);
+    }
+    if(mitigation?.panelOpen && !mitigation.preset && !mitigationPanel.current && active) {
+      setTrafficResultsOpen(true);
+      if(window.matchMedia("(max-width: 960px)").matches)setTrafficChatOpen(false);
+    }
+    mitigationPanel.current=!!mitigation?.panelOpen;
+  },[mitigation,trafficChatOpen,trafficResultsOpen]);
   useEffect(() => {
     if (mitigation?.status === "running" && openedMitigation.current !== mitigation.id) {
       openedMitigation.current = mitigation.id;
-      handleOpenTrafficWorkspace(); setTrafficView("abstreet");
+      handleOpenTrafficWorkspace(); setTrafficView("abstreet"); setTrafficScenarioEngine("abstreet");
     }
   },[mitigation,handleOpenTrafficWorkspace]);
   const openedDetection = useRef("");
@@ -251,11 +269,12 @@ export function AppShell() {
     if (detection?.status === "running" && openedDetection.current !== detection.id) {
       openedDetection.current = detection.id;
       handleOpenTrafficWorkspace();
-      setTrafficView("abstreet");
+      setTrafficView("abstreet"); setTrafficScenarioEngine("abstreet");
     }
   }, [detection, handleOpenTrafficWorkspace]);
   const handleViewGeoResult = useCallback(() => {
     handleOpenTrafficWorkspace();
+    setTrafficResultsOpen(true);
     setTrafficView("gis");
     if (selectedSession && geoScene) {
       trafficResultStore.latest(selectedSession.id);
@@ -265,10 +284,21 @@ export function AppShell() {
       geoSceneStore.markSeen(selectedSession.id, geoScene.revision);
     }
   }, [handleOpenTrafficWorkspace, selectedSession, geoScene]);
-  const handleTrafficMode = useCallback((mode: TrafficView | "conversation") => {
+  const handleTrafficMode = useCallback((mode: TrafficView | "conversation", preserveResults = false) => {
     if (mode === "conversation") { setTrafficWorkspaceOpen(false); setRightPanelOpen(false); }
-    else { setTrafficView(mode); handleOpenTrafficWorkspace(); }
-  }, [handleOpenTrafficWorkspace]);
+    else {
+      if ((mode === "abstreet" || mode === "sumo") && mode !== trafficScenarioEngine) {
+        const reason = scenarioSwitchReason({ mitigationBusy: mitigationStore.switchBlocked(), detectionBusy: congestionStore.busy(), agentBusy: trafficAgentBusy || !!selectedSession && runningSessionIds.has(selectedSession.id) });
+        if (reason) { window.alert(reason); return false; }
+      }
+      if (mode === "abstreet" || mode === "sumo") setTrafficScenarioEngine(mode);
+      setTrafficView(mode); handleOpenTrafficWorkspace();
+      const narrow = window.matchMedia("(max-width: 960px)").matches;
+      if (narrow) setTrafficChatOpen(false);
+      if (!preserveResults || narrow) setTrafficResultsOpen(mode === "gis" && !narrow);
+    }
+    return true;
+  }, [handleOpenTrafficWorkspace, trafficScenarioEngine, trafficAgentBusy, selectedSession, runningSessionIds]);
   const handleSelectTrafficResult = useCallback((result: TrafficResult) => {
     if (!selectedSession) return;
     trafficResultStore.select(selectedSession.id, result.id);
@@ -279,7 +309,7 @@ export function AppShell() {
     }
   }, [selectedSession, handleTrafficMode]);
   const handleFocusCongestionRoad = useCallback((roadId: number, result: CongestionResult) => {
-    handleTrafficMode("abstreet");
+    if (!handleTrafficMode("abstreet", true)) return;
     window.dispatchEvent(new CustomEvent("traffic-focus-road", { detail: { sessionId: selectedSession?.id, roadId, result } }));
   }, [handleTrafficMode, selectedSession?.id]);
   const toggleTrafficChat = () => {
@@ -746,6 +776,7 @@ export function AppShell() {
     projectRoot?: string | null,
     projectKey?: string | null,
   ) => {
+    if (cwd && cwd !== (newSessionCwd ?? activeCwd) && (mitigationStore.switchBlocked() || congestionStore.busy())) { window.alert("请先结束当前交通任务并确认恢复，再切换项目。"); return false; }
     invalidateWorkspaceRestore();
     const currentFreshCwd = newSessionCwd ?? activeCwd;
     setActiveCwd(cwd);
@@ -815,6 +846,10 @@ export function AppShell() {
   }, [activeCwd, activeFileTabId, invalidateWorkspaceRestore, newSessionCwd, router, selectedSession, restoreWorkspaceContext]);
 
   const handleSelectSession = useCallback((session: SessionInfo, isRestore = false, entryId?: string, blockIndex?: number) => {
+    if (selectedSession?.id !== session.id && (mitigationStore.switchBlocked() || congestionStore.busy())) {
+      window.alert("交通任务尚未结束。请返回主工作台完成保留／恢复，或主动取消并确认恢复成功后再切换会话。");
+      return;
+    }
     setSearchTarget(entryId ? { sessionId: session.id, entryId, blockIndex } : null);
     invalidateWorkspaceRestore();
     const activeDraftKey = activeNewSessionDraftKeyRef.current;
@@ -871,6 +906,7 @@ export function AppShell() {
   }, [activeCwd, activeFileTabId, invalidateWorkspaceRestore, router, isMobile, newSessionCwd, selectedSession]);
 
   const handleNewSession = useCallback((sessionId: string, cwd: string) => {
+    if (mitigationStore.switchBlocked() || congestionStore.busy()) { window.alert("请先结束当前交通任务并确认恢复，再新建会话。"); return; }
     invalidateWorkspaceRestore();
     const draftKey = `new:${sessionId}:${cwd}`;
     rekeyDraft(parkedNewSessionDraftKey(cwd), draftKey);
@@ -2102,8 +2138,8 @@ export function AppShell() {
         <span className="traffic-nav-brand">TP</span>
         <button type="button" aria-controls="session-sidebar" aria-expanded={sidebarOpen} onClick={handleSidebarToggle}>会话</button>
         <button type="button" aria-expanded={trafficSkillsOpen} aria-controls="traffic-skills-panel" onClick={() => setTrafficSkillsOpen(current => !current)}>交通技能</button>
-        <small>工作模式</small>
-        {([["conversation", "对话", "◌"], ["gis", "GIS 分析", "▧"], ["abstreet", "A/B Street 仿真", "▷"], ["sumo", "SimTrend 仿真", "◇"]] as const).map(([mode, label, icon]) => <button key={mode} type="button" aria-pressed={mode === "conversation" ? !trafficWorkspaceOpen && !rightPanelOpen : trafficWorkspaceOpen && trafficView === mode} onClick={() => handleTrafficMode(mode)}><span aria-hidden="true">{icon}</span>{label}</button>)}
+        <small>交通任务</small>
+        {([["abstreet", "仿真工作台", "▷"], ["sumo", "仿真实验", "◇"], ["gis", "分析与报告", "▧"]] as const).map(([mode, label, icon]) => <button key={mode} type="button" aria-pressed={trafficWorkspaceOpen && trafficView === mode} onClick={() => handleTrafficMode(mode)}><span aria-hidden="true">{icon}</span>{label}</button>)}
         {trafficWorkspaceOpen && <div className="traffic-mobile-panels"><button type="button" aria-expanded={trafficChatOpen} onClick={toggleTrafficChat}>对话面板</button><button type="button" aria-expanded={trafficResultsOpen} onClick={toggleTrafficResults}>结果面板</button></div>}
         <button type="button" className="traffic-nav-settings" onClick={() => setSettingsSection(getLastSettingsSection(projectTrustCwd))}>设置</button>
         {trafficSkillsOpen && <div id="traffic-skills-panel"><TrafficSkillsPanel sessionId={selectedSession?.id ?? null} onClose={closeTrafficSkills} /></div>}
@@ -2539,6 +2575,8 @@ export function AppShell() {
               initialScrollPosition={selectedSession ? sessionScrollPositionsRef.current.get(selectedSession.id) ?? null : null}
               onScrollPositionChange={handleSessionScrollPositionChange}
               sessionRunning={Boolean(selectedSession && runningSessionIds.has(selectedSession.id))}
+              onBusyChange={setTrafficAgentBusy}
+              simtrendContextEnabled={trafficScenarioEngine === "sumo"}
               newSessionCwd={effectiveNewSessionCwd}
               newSessionDraftKey={newSessionDraftKey}
               onAgentEnd={handleAgentEnd}
@@ -2620,13 +2658,13 @@ export function AppShell() {
 
       <TrafficWorkspace
         open={trafficWorkspaceOpen}
+        agentBusy={trafficAgentBusy || !!selectedSession && runningSessionIds.has(selectedSession.id)}
         view={trafficView}
         sessionId={selectedSession?.id ?? null}
         contextKey={selectedSession?.id ?? newSessionDraftKey ?? "simtrend-workspace"}
         scene={selectedGeoResult ? selectedGeoResult.data as GeoScene : geoScene}
         unread={geoSceneUnread}
         focusRequest={geoFocusRequest.sessionId === selectedSession?.id ? geoFocusRequest.token : 0}
-        onViewChange={handleTrafficMode}
         onViewResult={handleViewGeoResult}
         onClose={() => setTrafficWorkspaceOpen(false)}
         chatOpen={trafficChatOpen}

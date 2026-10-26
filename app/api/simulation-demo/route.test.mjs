@@ -4,8 +4,10 @@ import test from "node:test";
 import { createJiti } from "jiti";
 const { GET, POST } = await createJiti(import.meta.url, { alias: { "@": process.cwd() } }).import("./route.ts");
 const url = "http://localhost/api/simulation-demo";
-const post = (body, signal) => POST(new Request(url, { method: "POST", headers: { Host: "localhost", "Content-Type": "application/json" }, body: JSON.stringify(body), signal }));
-const poll = (viewer, sessionId) => GET(new Request(`${url}?viewer=${viewer}&sessionId=${sessionId}`, { headers: { Host: "localhost" } }));
+const post = (body, signal) => POST(new Request(url, { method: "POST", headers: { Host: "localhost", "Content-Type": "application/json" }, body: JSON.stringify(body.action === "ack" ? { scenarioId, runId, ...body } : body), signal }));
+const runId = randomUUID();
+const scenarioId = "abstreet:chongqing-yuzhong";
+const poll = (viewer, sessionId, run = runId, scenario = scenarioId) => GET(new Request(`${url}?viewer=${viewer}&sessionId=${sessionId}&scenarioId=${scenario}&runId=${run}`, { headers: { Host: "localhost" } }));
 const reset = () => { globalThis.trafficDemoV2.viewers.clear(); globalThis.trafficDemoV2.cancelled.clear(); };
 const detection = (sessionId = "a", toolCallId = randomUUID()) => ({ action: "detect_congestion", sessionId, toolCallId });
 test("requires injected identity and preserves ordinary no-viewer error", async () => {
@@ -61,6 +63,30 @@ test("unregister and HTTP abort fail a pending detection", async () => {
   const aborted = post(detection(), controller.signal);
   await new Promise(resolve => setImmediate(resolve)); controller.abort();
   assert.match((await (await aborted).json()).error, /中止/);
+});
+
+test("run replacement rejects stale replies and highway refuses city tools", async () => {
+  reset();
+  const viewer = randomUUID();
+  await poll(viewer, "a");
+  const response = post(detection());
+  await new Promise(resolve => setImmediate(resolve));
+  const { command } = await (await poll(viewer, "a")).json();
+  assert.equal(command.runId, runId);
+  const nextRun = randomUUID();
+  await poll(viewer, "a", nextRun, "abstreet:highway-demo");
+  assert.match((await (await response).json()).error, /运行批次/);
+  assert.equal((await post({ action: "ack", id: command.id, viewer, result: {} })).status, 409);
+  assert.equal((await post({action:"apply_signal_plan", params:{intersectionId:3}})).status, 409);
+  assert.equal((await post(detection())).status, 409);
+  const control = post({action: "pause"});
+  await new Promise(resolve => setImmediate(resolve));
+  const current = (await (await poll(viewer, "a", nextRun, "abstreet:highway-demo")).json()).command;
+  assert.equal(current.runId, nextRun);
+  assert.equal((await post({action:"ack", id:current.id, viewer, scenarioId:"abstreet:highway-demo", runId:nextRun, result:{paused:true}})).status, 200);
+  const completed = await (await control).json();
+  assert.equal(completed.result.runId, nextRun);
+  assert.equal(completed.result.scenarioId, "abstreet:highway-demo");
 });
 test("preparation, overall and lost receiver timeouts fail without a success result", async t => {
   reset(); t.mock.timers.enable({ apis: ["Date", "setTimeout", "setInterval"] });

@@ -22,12 +22,16 @@ const steps: Record<string, string> = {
 };
 const statusNames: Record<string, string> = { queued: "等待执行", running: "正在执行", completed: "已完成", failed: "执行失败", clarification_required: "需要补充信息" };
 
-export function SimtrendPanel({ active, sessionId, contextKey }: { active: boolean; sessionId: string | null; contextKey: string }) {
+export function SimtrendPanel({ active, sessionId, contextKey, switchReason }: { active: boolean; sessionId: string | null; contextKey: string; switchReason: () => string }) {
   const [scenarios, setScenarios] = useState<SimtrendScenario[]>([]);
   const context = useSimtrendContext(contextKey);
   const scenarioId = context?.scenarioId ?? "";
   const [error, setError] = useState("");
   const [reload, setReload] = useState(0);
+  const [visited, setVisited] = useState<string[]>([]);
+  useEffect(() => {
+    if (scenarioId) setVisited(ids => ids.includes(scenarioId) ? ids : [...ids, scenarioId]);
+  }, [scenarioId]);
   useEffect(() => {
     if (!active) return;
     const abort = new AbortController();
@@ -43,17 +47,21 @@ export function SimtrendPanel({ active, sessionId, contextKey }: { active: boole
   }, [active, reload, contextKey]);
   const scenario = scenarios.find(item => item.scenario_id === scenarioId);
   return <div className="simtrend-panel">
-    <header className="simtrend-header"><div><small>SIMTREND</small><h2>交通仿真工作台</h2></div><button type="button" onClick={() => setReload(v => v + 1)}>刷新连接</button></header>
+    <header className="simtrend-header"><div><small>SIMTREND</small><h2>仿真实验 · SUMO</h2></div><button type="button" onClick={() => setReload(v => v + 1)}>刷新连接</button></header>
     {error && <p className="simtrend-error" role="alert">{error}</p>}
-    <label className="simtrend-scene-label">仿真场景<select aria-label="仿真场景" value={scenarioId} onChange={event => { const item = scenarios.find(row => row.scenario_id === event.target.value); if (item) simtrendContextStore.scene(contextKey, item.scenario_id, item.name); }}>{scenarios.map(item => <option value={item.scenario_id} key={item.scenario_id}>{item.name}</option>)}</select></label>
+    <label className="simtrend-scene-label">仿真场景<select aria-label="仿真场景" value={scenarioId} onChange={event => { const item = scenarios.find(row => row.scenario_id === event.target.value); if (item) { const reason = switchReason(); if (reason) { setError(reason); return; } simtrendContextStore.scene(contextKey, item.scenario_id, item.name); setError(""); } }}>{scenarios.map(item => <option value={item.scenario_id} key={item.scenario_id}>{item.name}</option>)}</select></label>
     {!scenario && !error && <p role="status">正在加载场景…</p>}
-    {scenario && <SceneWorkspace key={`${contextKey}:${scenarioId}`} contextKey={contextKey} scenario={scenario} sessionId={sessionId} active={active} />}
+    <p className="simtrend-description">当前引擎为 SUMO；主地图 A/B Street 与实验道路 ID 不通用。切换场景不取消后台 jobs；表单按场景保留，本次页面刷新后重置。运行环境由实际任务响应确认。</p>
+    {scenarios.filter(item => item.scenario_id === scenarioId || visited.includes(item.scenario_id)).map(item => <div className="simtrend-scene-workspace" key={`${contextKey}:${item.scenario_id}`} hidden={item.scenario_id !== scenarioId} inert={item.scenario_id !== scenarioId}>
+      <SceneWorkspace contextKey={contextKey} scenario={item} sessionId={sessionId} />
+    </div>)}
   </div>;
 }
 
-function SceneWorkspace({ scenario, sessionId, active, contextKey }: { scenario: SimtrendScenario; sessionId: string | null; active: boolean; contextKey: string }) {
+function SceneWorkspace({ scenario, sessionId, contextKey }: { scenario: SimtrendScenario; sessionId: string | null; contextKey: string }) {
   const [map, setMap] = useState<SimtrendMapData | null>(null);
-  const context = useSimtrendContext(contextKey);
+  const currentContext = useSimtrendContext(contextKey);
+  const context = currentContext?.scenarioId === scenario.scenario_id ? currentContext : null;
   const selection = context?.scenarioId === scenario.scenario_id ? context.selection : null;
   function setSelection(value: SimtrendSelection) {
     const road = map?.edges.find(item => item.edge_id === value.edge_id);
@@ -126,7 +134,7 @@ function SceneWorkspace({ scenario, sessionId, active, contextKey }: { scenario:
     return () => abort.abort();
   }, [sceneId, sid, contextKey]);
   useEffect(() => {
-    if (!active || !job || !["queued", "running"].includes(job.status)) return;
+    if (!job || !["queued", "running"].includes(job.status)) return;
     const abort = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
@@ -142,7 +150,7 @@ function SceneWorkspace({ scenario, sessionId, active, contextKey }: { scenario:
     };
     timer = setTimeout(poll, 500);
     return () => { abort.abort(); clearTimeout(timer); };
-  }, [active, job?.id, job?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [job?.id, job?.status]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!sessionId || !job?.result) return;
     trafficResultStore.add(sessionId, {

@@ -1,37 +1,55 @@
 .workspace { --sim-surface: #f2f5f3ed; --sim-text: #293e45; --sim-muted: #617579; --sim-accent: #237e77; --sim-success: #397d69; --sim-border: #c5d2cfd9; --sim-shadow: 0 3px 16px #1c353b14; flex: 1; min-width: 0; min-height: 0; height: 100%; display: flex; flex-direction: column; background: var(--bg-panel); color: var(--text); overflow: hidden; }
-:global(html.dark) .workspace { --sim-surface: #263236ed; --sim-text: #e0e9e7; --sim-muted: #adbfba; --sim-accent: #70c3b2; --sim-success: #87c8ac; --sim-border: #576965b3; --sim-shadow: 0 3px 16px #0003; }
+.scenarioBar { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--sim-border); background: var(--sim-surface); color: var(--sim-text); }
+.scenarioBar > div:nth-child(2) { flex: 1; min-width: 0; }
+.scenarioBar strong, .scenarioBar span[role="status"] { display: block; }
+.scenarioBar strong { font-size: 13px; }
+.scenarioBar span[role="status"] { font-size: 11px; color: var(--sim-muted); margin-top: 4px; }
+.scenarioSwitch { display: flex; gap: 4px; padding: 4px; border-radius: 8px; background: color-mix(in srgb, var(--sim-muted) 8%, transparent); }
+.scenarioSwitch button { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; font-size: 13px; font-weight: 600; padding: 7px 14px; border: 1px solid transparent; border-radius: 6px; background: var(--bg-panel); color: var(--sim-muted); white-space: nowrap; }
+.scenarioSwitch button[aria-pressed="true"] { color: var(--sim-accent); background: color-mix(in srgb, var(--sim-accent) 9%, var(--bg-panel)); border-color: color-mix(in srgb, var(--sim-accent) 45%, var(--sim-border)); }
+.scenarioBar > button { min-height: 32px; padding: 6px 10px; border: 1px solid var(--sim-border); border-radius: 6px; font-size: 12px; color: var(--sim-muted); }
+.loadNotice { position: absolute; z-index: 8; inset: 0; background: var(--sim-surface); display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 15px; padding: 30px; text-align: center; }
+.loadNotice p { overflow-wrap: anywhere; max-width: 600px; }
+.loadNotice button { color: var(--sim-accent); border: 1px solid var(--sim-border); border-radius: 6px; padding: 8px 16px; }
+.loading { position: absolute; z-index: 5; bottom: 65px; left: 12px; background: var(--sim-surface); color: var(--sim-text); padding: 10px; border-radius: 8px; font-size: 12px; }
+@media (max-width: 960px) { .scenarioBar { flex-wrap: wrap; gap: 8px; padding: 8px; } .scenarioSwitch { width: 100%; } .scenarioSwitch button { flex: 1; justify-content: center; padding: 8px 10px; } }
+:global(html.dark) .workspace { --sim-surface: #202830ed; --sim-text: #edf2f3; --sim-muted: #adbac3; --sim-accent: #57ceb7; --sim-success: #83cdb6; --sim-border: #3b4954b3; --sim-shadow: 0 2px 10px #0002; --sim-active-text: #152c2a; --sim-error: #f0a5a5; }
 .viewport { flex: 1; min-height: 260px; overflow: hidden; position: relative; background: #e8f0ef; container-type: inline-size; }
 .workspace iframe { position: absolute; top: 0; left: 0; border: 0; background: #e8f0ef; }
-.mapHud { position: absolute; z-index: 4; top: 14px; left: 14px; right: 14px; display: grid; grid-template-columns: 176px minmax(0, 1fr) 164px; gap: 12px; align-items: start; pointer-events: none; }
+.mapHud { position: absolute; z-index: 4; top: 12px; left: 12px; right: 12px; display: grid; grid-template-columns: minmax(164px, 196px) minmax(260px, 680px) minmax(180px, 216px); justify-content: space-between; gap: 12px; align-items: start; pointer-events: none; }
 .mapHud > * { pointer-events: auto; }
+.mapHud > :nth-child(2) { width: 100%; max-width: 680px; }
+.mapHud > [data-status="idle"] { max-width: 380px; justify-self: center; }
 .footer { display: flex; justify-content: space-between; gap: 12px; padding: 7px 12px; font-size: 10px; color: var(--text-muted); border-top: 1px solid var(--border); }
 .footer > span:last-child { flex-shrink: 0; }
 .error { display: flex; align-items: center; gap: 10px; padding: 8px 14px; color: #a3353d; background: #fff1f1; border-bottom: 1px solid #efcdd0; font-size: 12px; }
 .error span { flex: 1; }
 .error button { padding: 0 5px; font-size: 18px; }
-.sceneControls, .overview, .objectDetails { color: var(--sim-text); background: var(--sim-surface); border: 1px solid var(--sim-border); border-radius: 9px; padding: 12px; box-shadow: var(--sim-shadow); backdrop-filter: blur(14px); font-size: 12px; }
-.sceneControls, .overview { min-width: 0; }
+.sceneControls, .overview, .objectDetails { color: var(--sim-text); background: var(--sim-surface); border: 1px solid var(--sim-border); border-radius: 8px; padding: 11px 12px; box-shadow: var(--sim-shadow); backdrop-filter: blur(14px); font-size: 12px; }
+.sceneControls, .overview { min-width: 0; overflow-wrap: anywhere; line-height: 1.55; }
 .sceneControls > :is(small,strong), .overview > :is(small,strong,span) { display: block; }
-.sceneControls strong, .overview strong { font-size: 13px; margin: 3px 0 8px; font-weight: 600; }
-.sceneControls small, .overview small, .objectDetails small { color: var(--sim-muted); font-size: 10px; }
-.overview > span { color: var(--sim-muted); font-size: 11px; margin: 6px 0; }
+.sceneControls strong, .overview strong { font-size: 13px; margin: 3px 0 5px; font-weight: 600; }
+.sceneControls small, .overview small, .objectDetails small { color: var(--sim-muted); font-size: 11px; }
+.sceneControls p { margin: 6px 0 0; }
+.overview > span { color: var(--sim-muted); font-size: 12px; margin: 5px 0; }
 .clock, .controlRow, .roadNavigation { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .clock { flex-wrap: wrap; gap: 2px 6px; }
-.clock time { font: 22px var(--font-mono), monospace; color: var(--sim-text); }
-.clock > span { color: var(--sim-muted); font-size: 10px; }
-.controlRow { margin: 10px 0 7px; flex-wrap: wrap; gap: 6px; }
-.controlRow label { font-size: 10px; color: var(--sim-muted); display: flex; gap: 5px; align-items: center; }
-.controlRow select { background: var(--sim-surface); color: var(--sim-text); padding: 4px; border: 1px solid var(--sim-border); border-radius: 5px; }
+.clock time { font: 22px var(--font-mono), monospace; font-variant-numeric: tabular-nums; letter-spacing: -.04em; color: var(--sim-text); }
+.clock > span { color: var(--sim-muted); font-size: 11px; }
+.controlRow { margin: 7px 0 4px; flex-wrap: wrap; gap: 6px; }
+.controlRow label { font-size: 11px; color: var(--sim-muted); display: flex; gap: 5px; align-items: center; }
+.controlRow select { min-height: 32px; background: var(--sim-surface); color: var(--sim-text); padding: 4px 6px; border: 1px solid var(--sim-border); border-radius: 5px; }
 .workspace :is(button,a) { cursor: pointer; }
-.sceneControls button, .overview button, .viewActions button, .moreActions :is(button,a), .roadNavigation button { font-size: 11px; border: 1px solid var(--sim-border); border-radius: 6px; background: var(--sim-surface); color: var(--sim-text); padding: 6px 8px; }
+.sceneControls button, .overview button, .viewActions button, .moreActions :is(button,a), .roadNavigation button { display: inline-flex; align-items: center; justify-content: center; min-height: 32px; font-size: 12px; line-height: 1.4; border: 1px solid var(--sim-border); border-radius: 6px; background: var(--sim-surface); color: var(--sim-text); padding: 6px 9px; }
 .workspace button:disabled { opacity: .45; cursor: default; }
 .workspace :is(button,a,select):focus-visible { outline: 2px solid var(--sim-accent); outline-offset: 3px; }
 .workspace button:not(:disabled):hover, .moreActions a:hover { background: color-mix(in srgb, var(--sim-accent) 8%, var(--sim-surface)); }
 .overview button { margin-top: 8px; }
 .overviewActions { display: flex; flex-wrap: wrap; gap: 0 5px; }
-.viewActions, .moreActions { position: absolute; z-index: 3; display: flex; gap: 5px; bottom: 14px; }
+.viewActions, .moreActions { position: absolute; z-index: 3; display: flex; gap: 6px; bottom: 14px; }
 .viewActions { right: 14px; }
 .moreActions { left: 14px; }
+.viewActions button[aria-label] { width: 34px; font-size: 18px; padding: 3px; }
 .viewActions button[aria-pressed="true"] { color: var(--sim-accent); border-color: var(--sim-accent); background: color-mix(in srgb, var(--sim-accent) 8%, var(--sim-surface)); }
 .objectLayer { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
 .objectLayer > svg { position: absolute; width: 100%; height: 100%; overflow: visible; }
@@ -40,6 +58,7 @@
 .objectDetails { position: absolute; pointer-events: auto; padding: 12px; overflow-y: auto; }
 .objectDetails header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
 .objectDetails header strong { display: block; font-size: 14px; margin-top: 4px; }
+.objectDetails > :is(small,button) { display: block; margin-top: 7px; }
 .objectDetails header button { color: var(--sim-muted); font-size: 20px; line-height: 1; }
 .objectDetails dl { margin: 10px 0; }
 .objectDetails dl > div { display: flex; justify-content: space-between; gap: 6px; margin: 7px 0; font-size: 11px; }
@@ -49,8 +68,9 @@
 .severity[data-level="severe"] { color: #ad5416; background: #fff0e1; }
 .severity[data-level="critical"] { color: #b3353e; background: #ffebed; }
 .roadNavigation { margin-top: 10px; }
-@container (max-width: 850px) { .mapHud { grid-template-columns: 1fr 1fr; gap: 8px; top: 10px; left: 10px; right: 10px; } .mapHud > :nth-child(2) { grid-column: 1 / -1; grid-row: 1; } .sceneControls, .overview { grid-row: 2; padding: 10px; } .sceneControls { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 8px; } .sceneControls > :is(small,strong) { grid-column: 1; margin: 0; } .sceneControls > small:last-child { display: none; } .clock { grid-column: 2; grid-row: 1 / 3; justify-content: end; } .clock time { font-size: 18px; } .controlRow { grid-column: 1 / -1; margin: 3px 0 0; justify-content: start; } .overview strong { margin-bottom: 4px; } .overview > span { margin: 3px 0; } .overview button { margin-top: 5px; padding: 4px 7px; } }
-@container (max-width: 460px) { .mapHud { top: 8px; left: 8px; right: 8px; gap: 6px; } .sceneControls, .overview { padding: 8px; } .sceneControls { display: block; } .sceneControls strong, .overview strong { font-size: 12px; margin: 3px 0; } .clock { justify-content: start; margin: 5px 0; } .clock time { font-size: 17px; } .controlRow { gap: 4px; } .moreActions a, .moreActions > button:last-child { display: none; } .viewActions { gap: 2px; right: 5px; bottom: 8px; } .viewActions button { padding: 5px; font-size: 10px; } .moreActions { left: 5px; bottom: 8px; } .moreActions button { padding: 5px; font-size: 10px; } .footer { padding: 5px 8px; } .footer > span:last-child { display: none; } }
+@container (max-width: 700px) { .mapHud { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; top: 10px; left: 10px; right: 10px; } .mapHud > :nth-child(2) { grid-column: 1 / -1; grid-row: 1; justify-self: center; } .sceneControls, .overview { grid-row: 2; padding: 10px; } .mapHud > :first-child { max-width: 200px; } .overview { width: 100%; max-width: 220px; justify-self: end; } .clock time { font-size: 20px; } .controlRow { margin: 6px 0; } .overview > span { margin: 3px 0; } .overview button { margin-top: 5px; } }
+@container (max-width: 700px) { .moreActions { bottom: 54px; } }
+@container (max-width: 460px) { .mapHud { top: 8px; left: 8px; right: 8px; gap: 6px; } .sceneControls, .overview { padding: 8px; } .sceneControls { display: block; } .sceneControls strong, .overview strong { font-size: 12px; margin: 3px 0; } .clock { justify-content: start; margin: 5px 0; } .clock time { font-size: 17px; } .controlRow { gap: 4px; } .viewActions { right: 8px; bottom: 8px; } .moreActions { left: 8px; bottom: 48px; } .moreActions :is(button,a) { padding: 6px; font-size: 11px; } .footer { padding: 5px 8px; } .footer > span:last-child { display: none; } }
 @media (prefers-reduced-motion: reduce) { .workspace * { animation: none !important; transition: none !important; } }
 .modalBackdrop { --sim-surface:#f2f5f3; --sim-text:#293e45; --sim-muted:#617579; --sim-accent:#237e77; --sim-border:#c5d2cf; position:fixed; inset:0; z-index:150; background:#172e3640; display:flex; align-items:center; justify-content:center; padding:24px; }
 :global(html.dark) .modalBackdrop { --sim-surface:#263236; --sim-text:#e0e9e7; --sim-muted:#adbfba; --sim-accent:#70c3b2; --sim-border:#576965; }
@@ -73,4 +93,15 @@
 .comparisonTable { overflow:auto; }
 .mitigationDialog footer { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:18px; padding-top:14px; border-top:1px solid var(--sim-border); }
 .mitigationDialog footer span { width:100%; font-size:11px; color:var(--sim-muted); }
+.dockBackdrop { --sim-surface:var(--bg-panel); --sim-text:var(--text); --sim-muted:var(--text-muted); --sim-accent:var(--accent); --sim-border:var(--border); height:100%; min-height:0; }
+.mitigationDock { display:flex; flex-direction:column; width:100%; height:100%; max-height:none; border:0; border-radius:0; padding:0; box-shadow:none; overflow:hidden; font-size:12px; }
+.mitigationDock > header { padding:12px; flex-shrink:0; border-bottom:1px solid var(--border); }
+.mitigationDock h2 { font-size:15px; margin:4px 0 0; }
+.mitigationBody { min-height:0; overflow:auto; padding:0 2px; }
+.mitigationDock .mitigationBody { flex:1; padding:0 12px 14px; }
+.mitigationDock .candidateGrid { grid-template-columns:1fr; gap:8px; }
+.mitigationDock .candidateGrid article { padding:10px; }
+.mitigationDock footer { flex-shrink:0; margin:0; padding:10px 12px; max-height:34%; overflow:auto; background:var(--bg-panel); }
+.mitigationDock footer button { min-height:36px; }
+.mitigationDock .diagnosis { padding:8px; }
 @media(max-width:640px) { .modalBackdrop { padding:0; align-items:end; } .mitigationDialog { width:100%; max-height:88dvh; border-radius:14px 14px 0 0; padding:16px; } .candidateGrid { grid-template-columns:1fr; } }

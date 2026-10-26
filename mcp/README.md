@@ -17,6 +17,8 @@
 - 同条件评估：`capture_metrics`、`compare_metrics`
 - 演示重置：`start_rush_hour_demo`
 
+工作台顶部可切换城市／高速。`start_rush_hour_demo` 经用户确认和任务保护重新加载城市初始暂停状态，等待实际控制桥确认后返回。其他基础控制作用于当前场景；高速仅提供播放、时间、指标及镜头操作，不支持城市拥堵检测和信号治理。命令与结果由运行时附带场景和加载批次，旧批次历史结果不能用于当前地图操作。
+
 `apply_signal_plan` 会在首次修改前保存原方案；`restore_signal_plan` 用它恢复基准。`capture_metrics` 的方案组通过 `baselineCaptureId` 回到基准检查点，在当前信号方案下使用相同场景、随机种子、起点和统计时长重跑。条件不一致或右侧执行失败时，MCP 返回失败，不生成替代数据。
 
 推荐让 `traffic-governance` Skill 编排完整流程。第一版仅执行信号配时治理，默认根据真实拥堵指标自动选择道路和信号路口，也接受用户指定的目标。

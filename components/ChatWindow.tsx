@@ -41,6 +41,8 @@ interface Props {
   initialScrollPosition?: ChatScrollPosition | null;
   onScrollPositionChange?: (sessionId: string, position: ChatScrollPosition) => void;
   sessionRunning?: boolean;
+  onBusyChange?: (busy: boolean) => void;
+  simtrendContextEnabled?: boolean;
   newSessionCwd: string | null;
   newSessionDraftKey: string | null;
   onAgentEnd?: () => void;
@@ -245,7 +247,7 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
   );
 }
 
-export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, newSessionCwd, newSessionDraftKey, onAgentEnd, onAttentionNeeded, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile, onOpenSession, onAskInNewChat, quoteSelectionEnabled = false, showMinimap = true, initialPrompt, onInitialPromptConsumed, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, onGeoScene, onToolResult }: Props) {
+export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initialScrollPosition, onScrollPositionChange, sessionRunning, onBusyChange, simtrendContextEnabled = true, newSessionCwd, newSessionDraftKey, onAgentEnd, onAttentionNeeded, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSystemToolsChange, onSystemInfoLoaderChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile, onOpenSession, onAskInNewChat, quoteSelectionEnabled = false, showMinimap = true, initialPrompt, onInitialPromptConsumed, soundEnabled = true, onSoundToggle, playDoneSound = () => {}, unlockAudio, onGeoScene, onToolResult }: Props) {
   const { t } = useI18n();
   const isMobile = useIsMobile();
   const completionNotificationsEnabled = session?.relation?.kind !== "subagent";
@@ -311,6 +313,10 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   }, [messages, onGeoScene, session?.id]);
   const sessionBusy = agentRunning || bashRunning;
   useEffect(() => {
+    onBusyChange?.(sessionBusy);
+    return () => onBusyChange?.(false);
+  }, [sessionBusy, onBusyChange]);
+  useEffect(() => {
     const start = (event: Event) => {
       const detail = (event as CustomEvent<{ sessionId: string | null; handled: boolean }>).detail;
       if (detail.sessionId !== (session?.id ?? null)) return;
@@ -323,11 +329,11 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   }, [session?.id, sessionBusy, handleSend]);
   useEffect(() => {
     const start = (event: Event) => {
-      const detail = (event as CustomEvent<{sessionId:string|null;roadId?:number;prompt?:string;handled:boolean}>).detail;
+      const detail = (event as CustomEvent<{sessionId:string|null;roadId?:number;prompt?:string;presetScenario?:boolean;handled:boolean}>).detail;
       if (detail.sessionId !== (session?.id ?? null)) return;
       detail.handled=true;
-      if (sessionBusy || !detail.prompt && mitigationStore.busy()) event.preventDefault();
-      else void handleSend(detail.prompt ?? `/skill:traffic-mitigation 承接已发现的拥堵，分析并缓解当前拥堵${detail.roadId===undefined?"":`，目标 roadId=${detail.roadId}`}，调用 analyze_congestion_cause 并传 presetScenario:true，展示证据和候选方案等待我选择，随后在页面完成方案验证与决策。`);
+      if (sessionBusy || !detail.prompt && mitigationStore.switchBlocked()) event.preventDefault();
+      else void handleSend(detail.prompt ?? `/skill:traffic-mitigation 承接已发现的拥堵，分析并缓解当前拥堵${detail.roadId===undefined?"":`，目标 roadId=${detail.roadId}`}，调用 analyze_congestion_cause 并传 presetScenario:${detail.presetScenario === true}，${detail.presetScenario !== true ? "使用当前 A/B Street 真实控制桥溯源，若不支持则如实报告，不切换为预设模型；等待我选择并授权后再验证" : "使用预设参数推演，明确标注模型来源；展示证据和候选方案等待我选择，随后在页面完成推演与决策"}。`);
     };
     window.addEventListener("traffic-start-mitigation",start);
     return()=>window.removeEventListener("traffic-start-mitigation",start);
@@ -903,12 +909,12 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
 
   const spatialContextKey = session?.id ?? newSessionDraftKey ?? "simtrend-workspace";
   function contextualize(message: string) {
-    return withSimtrendContext(message, simtrendContextStore.get(spatialContextKey));
+    return withSimtrendContext(message, simtrendContextEnabled ? simtrendContextStore.get(spatialContextKey) : null);
   }
   const chatInputElement = (
     <ChatInput
       ref={chatInputRef}
-      contextHeader={<SimtrendContextTag contextKey={spatialContextKey} />}
+      contextHeader={simtrendContextEnabled ? <SimtrendContextTag contextKey={spatialContextKey} /> : undefined}
       onSend={(message, images) => handleSend(contextualize(message), images)}
       onAbort={handleAbort}
       onSteer={agentRunning ? (message, images) => handleSteer(contextualize(message), images) : undefined}

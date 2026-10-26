@@ -111,7 +111,7 @@ interface Props {
     cwd: string | null,
     projectRoot?: string | null,
     projectKey?: string | null,
-  ) => void;
+  ) => void | boolean;
   onOpenFile?: (filePath: string, fileName: string, options?: { sourceSessionId?: string | null; modeHint?: "diff" }) => void;
   onOpenTerminal?: (cwd: string) => void;
   explorerRefreshKey?: number;
@@ -688,11 +688,15 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     const previous = lastNotifiedProjectRef.current;
     if (previous?.cwd === selectedCwd && previous.key === (project?.key ?? null)) return;
     lastNotifiedProjectRef.current = { cwd: selectedCwd, key: project?.key ?? null };
-    onCwdChange?.(
+    const accepted = onCwdChange?.(
       selectedCwd,
       project?.root ?? null,
       project?.key ?? null,
     );
+    if (accepted === false) {
+      lastNotifiedProjectRef.current = previous;
+      setSelectedCwd(previous?.cwd ?? null);
+    }
   }, [selectedCwd, onCwdChange, projectFor]);
 
   // Sync the worktree switcher to the selected session's cwd. Sessions of all

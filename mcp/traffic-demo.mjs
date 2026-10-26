@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import * as z from "zod/v4";
 
+const simulationEndpoint = new URL("/api/simulation-demo", process.env.TRAFFIC_PI_BASE_URL || "http://127.0.0.1:30141").href;
 const server = new McpServer({ name: "traffic-demo", version: "2.0.0" });
 const roadIds = z.array(z.number().int().nonnegative()).max(100).optional();
 const intersectionIds = z.array(z.number().int().nonnegative()).max(100).optional();
@@ -10,14 +11,14 @@ async function dispatch(action, params = {}, extra) {
   const actionId = crypto.randomUUID();
   const detection = ["detect_congestion", "analyze_congestion_cause", "evaluate_signal_plan", "finalize_signal_trial"].includes(action);
   const identity = detection ? extra?._meta?.trafficPi : undefined;
-  const cancel = () => { if (identity) void fetch("http://127.0.0.1:30141/api/simulation-demo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "cancel_detection", ...identity }) }).catch(() => {}); };
+  const cancel = () => { if (identity) void fetch(simulationEndpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "cancel_detection", ...identity }) }).catch(() => {}); };
   if (detection) extra?.signal?.addEventListener("abort", cancel, { once: true });
   try {
-    const response = await fetch("http://127.0.0.1:30141/api/simulation-demo", {
+    const response = await fetch(simulationEndpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ actionId, action, params, ...identity }),
-      signal: AbortSignal.any([AbortSignal.timeout(action === "evaluate_signal_plan" ? 1265000 : action === "analyze_congestion_cause" ? 605000 : detection ? 302000 : 65000), ...(extra?.signal ? [extra.signal] : [])]),
+      signal: AbortSignal.any([AbortSignal.timeout(action === "start" ? 245000 : action === "evaluate_signal_plan" ? 1265000 : action === "analyze_congestion_cause" ? 605000 : detection ? 302000 : 65000), ...(extra?.signal ? [extra.signal] : [])]),
     });
     if (!response.headers.get("content-type")?.includes("application/json")) throw new Error("无法访问 Traffic Pi，请确认本机服务已启动且未启用访问密码。");
     const result = await response.json();
@@ -83,12 +84,12 @@ tool("resume_current_simulation", "以 1 倍速度继续当前仿真并返回真
 tool("speed_up_current_simulation", "将当前仿真提高一档速度并返回真实状态。", {}, "faster");
 tool("get_simulation_state", "读取仿真时间、速度、暂停状态、场景和随机种子。", {});
 server.registerTool("detect_congestion", { description: "检测当前 A/B Street 疑似拥堵道路：自动打开当前场景，读取状态和指标，按排队≥5辆且速度≤10km/h筛选前5处，替换高亮并定位。保持当前时间控制状态，不重置或推进。返回采集时间、原始指标和排名；后续查看第几个点使用返回 roadId 调用 focus_on_road。", inputSchema: {} }, async (_params, extra) => dispatch("detect_congestion", {}, extra));
-server.registerTool("analyze_congestion_cause", { description: "分析并缓解当前拥堵：关联一处目标道路、信号相位和下游排队，观察最多两个周期并暂停，展示溯源证据与候选配时等待用户选择。不自动应用方案；无 roadId 时选择当前首位疑似拥堵。用户明确要求预设场景、推演或展示完整治理闭环时，可传 presetScenario:true，采用预设模型生成方案，选择与验证由页面完成；该模式不修改真实仿真配时，结果不能当作实测。", inputSchema: { roadId: z.number().int().nonnegative().optional(), presetScenario: z.boolean().optional() } }, async (params, extra) => dispatch("analyze_congestion_cause",params,extra));
+server.registerTool("analyze_congestion_cause", { description: "分析并缓解当前拥堵：关联一处目标道路、信号相位和下游排队，观察最多两个周期并暂停，展示溯源证据与候选配时等待用户选择。不自动应用方案；无 roadId 时选择当前首位疑似拥堵。默认使用真实控制桥，不支持时如实报告，不自动降级。只有用户主动选择预设模型或明确要求预设参数时，可传 presetScenario:true，采用预设模型生成方案，选择与验证由页面完成；该模式不修改真实仿真配时，结果不能当作实测。高速演示不支持城市信号治理。", inputSchema: { roadId: z.number().int().nonnegative().optional(), presetScenario: z.boolean().optional() } }, async (params, extra) => dispatch("analyze_congestion_cause",params,extra));
 for (const name of ["evaluate_signal_plan", "finalize_signal_trial"]) server.registerTool(name, {
   description: name === "evaluate_signal_plan" ? "仅在用户通过方案面板选定后，按面板提供的 taskId、approvalToken、version 从同起点验证原配时与选定方案。不得自行生成授权标识。" : "仅在用户通过结果面板决定保留或恢复后，提交面板提供的 taskId、approvalToken、version。不得自行选择。",
   inputSchema: { taskId:z.string().min(1), approvalToken:z.string().uuid(), version:z.number().int().positive() },
 }, async(params,extra)=>dispatch(name,params,extra));
-tool("get_road_metrics", "读取道路实时速度、小时流量、排队车辆数和平均累计延误；不传 roadIds 时返回最拥堵道路。", { roadIds });
+tool("get_road_metrics", "读取道路历史行程平均速度（非瞬时测速）、小时流量、排队车辆数和平均累计延误；不传 roadIds 时仅返回接口覆盖的拥堵道路，不代表全路网。", { roadIds });
 tool("get_intersection_metrics", "读取路口小时流量、当前相位、排队车辆数和最近一小时平均延误；不传 intersectionIds 时返回最拥堵信号路口。", { intersectionIds });
 tool("focus_on_road", "把仿真镜头移动到指定内部道路 ID。", { roadId: z.number().int().nonnegative() });
 tool("highlight_roads", "按预警等级在真实仿真画面高亮道路。", { roads: z.array(z.object({ roadId: z.number().int().nonnegative(), level: z.enum(["warning", "severe", "critical"]) })).min(1).max(100) });

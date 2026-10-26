@@ -1,4 +1,4 @@
-export const congestionRule = "瞬时筛选：排队 ≥ 5 辆且平均车速 ≤ 10 km/h；尚非经标定的交通评价标准。";
+export const congestionRule = "启发式筛选：排队 ≥ 5 辆且历史平均车速 ≤ 10 km/h；未经标定。";
 
 export type CongestedRoad = {
   roadId: number;
